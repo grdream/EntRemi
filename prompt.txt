@@ -1,0 +1,949 @@
+You are an expert Laravel 13 full-stack developer. Your first task is to create a detailed `plan.md` file before writing any code. This plan will guide the entire development of a WatchList Reminder Web Application built with Laravel 13, MySQL, Blade + Alpine.js + Livewire, and TailwindCSS.
+
+---
+
+## PROJECT OVERVIEW
+
+Build a full-featured WatchList Reminder Application where users can:
+- Register and login with their own accounts
+- Add dramas, movies, anime, TV series, and any watchable content to their personal watchlist
+- Auto-fetch content details (poster, description, episodes, air dates) from free APIs
+- Set smart episode schedule patterns (daily, weekly, bi-weekly, custom, etc.)
+- Receive email (SMTP) and SMS reminders before new episodes air
+- Manage all notification preferences from their dashboard
+- View notification history and upcoming episode schedule
+
+---
+
+## TECH STACK
+
+- **Framework:** Laravel 13
+- **PHP:** 8.3+
+- **Database:** MySQL 8.0+
+- **Frontend:** Blade templates + Alpine.js + Livewire 3 + TailwindCSS 3
+- **Auth:** Laravel Breeze (Blade stack)
+- **Mail:** SMTP via Laravel Mail (config via .env — NOT php mail())
+- **SMS:** Custom HTTP gateway integration (ViserLab SMSLab PHP script via cURL POST)
+- **Queue/Jobs:** Laravel Queue (database driver, upgradeable to Redis)
+- **Scheduler:** Laravel Task Scheduler (cron every 15 minutes)
+- **APIs Used (all free):**
+  - TMDB API (movies, TV series, dramas) — free API key required
+  - Jikan API v4 (anime) — completely free, no key needed
+  - YouTube oEmbed API (fetch title + thumbnail from YouTube links) — free, no key
+  - Open Library / manual entry fallback
+
+---
+
+## PLAN.MD REQUIREMENTS
+
+Create a file called `plan.md` in the project root. This file must contain:
+
+1. Full project description and goals
+2. Complete database schema (all tables, columns, relationships, indexes)
+3. All API integrations explained
+4. Notification system architecture explained
+5. SMS gateway integration explained
+6. 10 development phases (detailed below)
+
+---
+
+## THE 10 PHASES (each phase must include):
+- Phase title and goal
+- List of files to create (with exact paths)
+- List of artisan commands to run
+- Step-by-step implementation instructions
+- Any .env variables needed for that phase
+- Expected outcome / what works after this phase is complete
+
+---
+
+### PHASE 1 — Project Setup & Configuration
+- Install Laravel 13 via composer
+- Configure .env for MySQL database connection
+- Configure .env for SMTP mail (host, port, username, password, from address, from name)
+- Install and configure TailwindCSS 3 via Vite
+- Install Alpine.js
+- Install Livewire 3
+- Install Laravel Breeze (Blade + Alpine stack)
+- Set APP_NAME, APP_URL, APP_ENV, APP_DEBUG
+- Set QUEUE_CONNECTION=database
+- Set up base layout (app.blade.php) with sidebar navigation, topbar, responsive mobile menu
+- Create a beautiful dark-mode supported UI shell with TailwindCSS
+- Run initial migrations
+- Expected: App loads, auth pages (login/register) work, dashboard shows placeholder
+
+---
+
+### PHASE 2 — Database Schema & Models
+Create ALL migrations and Eloquent models for the entire application:
+
+Tables needed:
+- `users` — id, name, email, password, phone, timezone, avatar, email_notifications (boolean, default true), sms_notifications (boolean, default false), sms_gateway_enabled (boolean, default false), remember_token, timestamps
+- `shows` — id, user_id (FK), title, slug, type (enum: drama, movie, anime, tv_series, anime_movie, other), description, poster_url, backdrop_url, tmdb_id, jikan_id, imdb_id, status (enum: watching, completed, on_hold, dropped, plan_to_watch), country, language, total_episodes, genres (json), rating, year, timestamps, soft_deletes
+- `episodes` — id, show_id (FK), season_no (nullable), episode_no, title (nullable), description (nullable), air_datetime (datetime), duration_minutes, thumbnail_url, youtube_link (nullable), is_aired (boolean default false), notified (boolean default false), timestamps
+- `schedules` — id, show_id (FK), pattern (enum: daily, weekly, bi_weekly, twice_per_week, monthly, irregular, movie_one_time), days_of_week (json, nullable — e.g. ["monday","friday"]), air_time (time), timezone, episodes_per_slot (int default 1), start_date (date), end_date (nullable), is_active (boolean default true), timestamps
+- `reminders` — id, user_id (FK), show_id (FK), episode_id (FK nullable), remind_before_minutes (int — e.g. 30, 60, 1440 for 1 day), channels (json — ["email","sms"]), is_active (boolean default true), timestamps
+- `notification_logs` — id, user_id (FK), show_id (FK), episode_id (FK), channel (enum: email, sms), status (enum: sent, failed, pending), message, error_message (nullable), sent_at, timestamps
+- `user_smtp_settings` — id, user_id (FK unique), host, port, username, password (encrypted), encryption (enum: tls, ssl, none), from_address, from_name, is_active (boolean default true), tested_at (nullable), timestamps
+- `user_sms_settings` — id, user_id (FK unique), gateway_url, api_key (encrypted, nullable), sender_id (nullable), extra_params (json, nullable — for ViserLab SMSLab params), is_active (boolean default true), tested_at (nullable), timestamps
+- `watchlist_notes` — id, user_id (FK), show_id (FK), note (text), timestamps
+
+Models: User, Show, Episode, Schedule, Reminder, NotificationLog, UserSmtpSetting, UserSmsSetting, WatchlistNote
+
+All models must have:
+- Proper fillable arrays
+- Relationships (hasMany, belongsTo, etc.)
+- Casts (json columns as arrays, booleans, datetimes)
+- Scopes where useful
+- SoftDeletes on Show model
+
+Expected: All tables created, models ready, relationships working
+
+---
+
+### PHASE 3 — Authentication & User Profile
+- Laravel Breeze already installed in Phase 1
+- Extend registration form: add phone field (optional), timezone selector
+- User profile page: update name, email, phone, timezone, avatar upload
+- Change password section
+- Account deletion option
+- Beautiful profile UI with TailwindCSS cards
+- Timezone support: use PHP timezones list for dropdown
+- Store avatar in storage/app/public/avatars, create symlink
+
+Expected: Full auth flow, profile management works
+
+---
+
+### PHASE 4 — Notification Settings (SMTP + SMS)
+This is a critical phase. Build the notification settings page:
+
+**Email (SMTP) Settings:**
+- Form fields: SMTP Host, Port, Username, Password, Encryption (TLS/SSL/None), From Address, From Name
+- "Send Test Email" button — sends a test email using the user's own SMTP credentials
+- Save/update SMTP settings (password stored encrypted using Laravel's encrypt())
+- Toggle: Enable/Disable email notifications (default: ENABLED)
+- Show connection status (tested / not tested)
+
+**SMS Settings:**
+- Form fields: Gateway URL (their ViserLab SMSLab script URL), API Key (optional), Sender ID (optional), Extra POST params (key-value pairs, stored as JSON)
+- "Send Test SMS" button — sends a test SMS to the user's phone number
+- Toggle: Enable/Disable SMS notifications (default: DISABLED)
+- Instructions text explaining how to connect ViserLab SMSLab
+
+**Global notification preferences:**
+- Reminder timing options: 15 min, 30 min, 1 hour, 2 hours, 6 hours, 12 hours, 1 day before episode
+- User can select multiple reminder timings (stored as JSON array)
+- Per-show override option (explained in Phase 6)
+
+**Implementation:**
+- Use Livewire component for real-time toggle saving
+- Encrypt sensitive fields (SMTP password, API key) using Laravel's Crypt facade
+- Test email uses Laravel's Mail::mailer() with runtime SMTP config (not .env)
+- Test SMS fires a cURL POST to the user's gateway URL
+
+Expected: User can configure and test both email and SMS. Defaults: email ON, SMS OFF.
+
+---
+
+### PHASE 5 — Content Search & Auto-Fetch System
+Build the content discovery system:
+
+**Search Flow:**
+1. User goes to "Add to Watchlist"
+2. Sees tabs: Search Online | Paste YouTube Link | Manual Entry
+3. **Search Online tab:**
+   - Single search box with type filter (All / Movie / TV Series / Drama / Anime)
+   - Live search using Livewire (debounce 500ms)
+   - For non-anime: hits TMDB API `/search/multi` endpoint
+   - For anime: hits Jikan API `/anime` endpoint
+   - Results show as cards: poster, title, year, type, rating, brief description
+   - Click "Add to Watchlist" on any result
+
+4. **Paste YouTube Link tab:**
+   - User pastes a YouTube URL (episode or trailer)
+   - Fetch via YouTube oEmbed: `https://www.youtube.com/oembed?url={url}&format=json`
+   - Returns: title, thumbnail_url, author_name
+   - Auto-fill the manual entry form with fetched data
+
+5. **Manual Entry tab:**
+   - Full form: title, type, description, poster URL or upload, total episodes, year, country, language, genres
+
+**TMDB Integration:**
+- Store TMDB_API_KEY in .env
+- Create App\Services\TmdbService class
+- Methods: search($query, $type), getMovieDetails($tmdbId), getTvDetails($tmdbId), getEpisodes($tmdbId, $season)
+- Cache API responses for 24 hours using Laravel Cache
+
+**Jikan Integration:**
+- Create App\Services\JikanService class
+- Methods: search($query), getAnimeDetails($jikanId), getEpisodes($jikanId)
+- No API key needed
+- Cache responses for 24 hours
+
+**YouTube oEmbed Integration:**
+- Create App\Services\YoutubeService class
+- Method: fetchDetails($url) — returns title, thumbnail, channel
+
+Expected: User can search and add any content. Poster and details auto-fill.
+
+---
+
+### PHASE 6 — Episode Scheduler & Smart Schedule Engine
+This is the most complex phase. Build the episode scheduling system.
+
+**When adding a show, after content details are fetched, show a Schedule Setup form:**
+
+Schedule patterns (user selects one):
+1. **Daily** — one new episode every day at [time]
+2. **Weekly (1 episode)** — every [day of week] at [time]
+3. **Weekly (2 episodes same day)** — every [day] at [time1] and [time2]
+4. **Bi-weekly** — every [day1] and [day2] at [time]
+5. **Twice per week (different times)** — [day1] at [time1] and [day2] at [time2]
+6. **Monthly** — on day [X] of each month at [time]
+7. **One-time / Movie** — single date and time picker (for movies or special episodes)
+8. **Irregular / Manual** — user adds episode air dates one by one
+
+**Schedule Engine (App\Services\ScheduleEngine):**
+- Method: generateEpisodes(Show $show, Schedule $schedule, int $fromEpisode = 1)
+- Auto-calculates all future episode air_datetime values from pattern
+- Stores each as an Episode record in the database
+- If total_episodes is known: generate all episodes
+- If unknown (ongoing): generate next 30 episodes, re-run weekly via scheduler
+- Handles timezone conversion (user timezone → UTC for storage)
+- Method: regenerateFromEpisode(Show $show, int $episodeNo) — for when user updates schedule
+
+**Per-show reminder overrides:**
+- On each show's detail page, user can override global reminder settings
+- Set custom reminder timing just for that show
+- Enable/disable notifications just for that show
+
+**Episode management page per show:**
+- List all episodes with air dates
+- Mark episode as aired manually
+- Edit individual episode's air datetime
+- Add a custom note per episode
+- Attach YouTube link to any episode
+
+Expected: After adding a show with a schedule, all episode dates are auto-generated and visible.
+
+---
+
+### PHASE 7 — Reminder Engine & Notification Dispatch
+Build the core notification system.
+
+**Laravel Scheduler (app/Console/Kernel.php or routes/console.php in Laravel 13):**
+- Every 15 minutes: run CheckUpcomingEpisodes command
+- Daily at midnight: run GenerateUpcomingEpisodes command (generates next 30 episodes for ongoing shows)
+- Daily at 6am: run SendDailySummary command (optional digest email)
+
+**CheckUpcomingEpisodes Command (App\Console\Commands\CheckUpcomingEpisodes):**
+- Query all episodes where:
+  - is_aired = false
+  - notified = false
+  - air_datetime is within the next [remind_before_minutes] window
+  - Show has active reminders
+  - User has notifications enabled
+- For each matching episode:
+  - Dispatch SendEpisodeReminderJob to the queue
+  - Mark episode as notified = true
+
+**SendEpisodeReminderJob (App\Jobs\SendEpisodeReminderJob):**
+- Receives: Episode, User, channels (email, sms)
+- For email channel:
+  - Check if user has custom SMTP settings → use those
+  - Fallback to .env SMTP if no custom settings
+  - Send using App\Mail\EpisodeReminderMail Mailable
+  - Beautiful HTML email: show poster, episode number, title, air time, countdown
+- For SMS channel:
+  - Check if user has SMS settings and sms_notifications enabled
+  - Build message string: "Reminder: [Show Name] Episode [X] airs in [Y] minutes! Don't miss it."
+  - Fire cURL POST to user's gateway URL with their params
+  - Handle response and log success/failure
+- Log result to notification_logs table
+
+**App\Mail\EpisodeReminderMail:**
+- Blade email template (resources/views/emails/episode-reminder.blade.php)
+- Responsive HTML email design
+- Show poster image, show title, episode number, episode title (if known)
+- Air time in user's timezone
+- Countdown (e.g. "Airs in 30 minutes!")
+- Footer with unsubscribe-style link to notification settings
+
+**App\Services\SmsService:**
+- Method: send(User $user, string $message): bool
+- Reads user's UserSmsSetting
+- Builds POST params (gateway_url, api_key, sender_id, extra_params + phone + message)
+- Fires cURL POST
+- Returns true/false based on HTTP response
+
+Expected: Reminders fire automatically. Emails and SMS sent at correct times.
+
+---
+
+### PHASE 8 — Dashboard & Watchlist UI
+Build the main user interface.
+
+**Dashboard (/):**
+- Welcome card with user's name and stats (total shows, upcoming today, this week)
+- "Airing Today" section — episodes airing today with countdown timers (Alpine.js)
+- "Airing This Week" section — calendar-style view of upcoming episodes
+- "Recently Added" shows
+- Quick-add button
+
+**My Watchlist (/watchlist):**
+- Filter tabs: All | Watching | Completed | On Hold | Dropped | Plan to Watch
+- Search/filter by title, type, genre
+- Grid view and List view toggle (saved in localStorage)
+- Show cards: poster, title, type, progress (episode X of Y), next episode date, status badge
+- Quick actions: Mark next episode watched, Edit, Remove
+- Pagination (or infinite scroll with Livewire)
+
+**Show Detail Page (/shows/{slug}):**
+- Full show info: poster, backdrop, title, description, genres, rating, country
+- Episode list with air dates, status (aired/upcoming), YouTube link icon
+- Schedule info display
+- Reminder settings override panel
+- Notes section (add/edit personal notes about the show)
+- "Mark as Watched" per episode button
+
+**Upcoming Episodes (/upcoming):**
+- Full calendar or list view of all upcoming episodes across all shows
+- Filter by date range, show, type
+- Countdown timers for each
+
+**Notification History (/notifications/history):**
+- Table of all sent notifications
+- Columns: Show, Episode, Channel (email/sms), Status (sent/failed), Sent At
+- Filter by status, channel, date
+- Retry failed notifications button
+
+Expected: Full beautiful UI working end-to-end.
+
+---
+
+### PHASE 9 — Advanced Features
+Add power-user features:
+
+**Import from MAL/AniList (manual JSON):**
+- User can paste/upload a JSON export from MyAnimeList
+- App parses and bulk-adds anime to their watchlist
+
+**Show Recommendations (simple):**
+- Based on genres of shows the user is watching
+- Query TMDB /discover endpoint with matching genres
+- Show as "You might also like" section on dashboard
+
+**Progress Tracking:**
+- Track which episodes user has watched (separate from air tracking)
+- Progress bar per show
+- "Continue Watching" section on dashboard
+
+**Multiple Reminder Timings per Show:**
+- User can set multiple reminder times for one show
+- e.g. "Remind me 1 day before AND 30 minutes before"
+- Stored as array in reminders table
+
+**Public Share Page (optional, toggleable):**
+- User can make their watchlist public
+- Shareable URL like /u/{username}/watchlist
+- Read-only view of their currently watching shows
+
+**Admin Panel:**
+- Simple admin area at /admin
+- View all users, total shows, notification logs
+- Manually trigger the reminder checker
+- View system health (queue status, failed jobs)
+- Global TMDB/Jikan API status check
+
+**Dark Mode:**
+- Full dark mode support with TailwindCSS dark: classes
+- Toggle in topbar, saved in localStorage and synced to user profile
+
+Expected: App is feature-complete with power features.
+
+---
+
+### PHASE 10 — Production Deployment & Optimization
+Prepare for production on CloudPanel:
+
+**Performance:**
+- Run php artisan optimize
+- php artisan config:cache
+- php artisan route:cache
+- php artisan view:cache
+- php artisan event:cache
+- Set up Laravel Queue Worker as a system service (supervisor config provided)
+- Set up cron job: * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+
+**Security:**
+- Set APP_ENV=production, APP_DEBUG=false
+- Encrypt all sensitive DB fields (SMTP passwords, SMS API keys) — already done in Phase 4
+- Set proper file permissions (storage, bootstrap/cache)
+- Add rate limiting to auth routes and API endpoints
+- CSRF protection (Laravel default)
+- XSS protection (Blade auto-escaping)
+
+**CloudPanel Setup Instructions:**
+- Create PHP 8.3 site in CloudPanel
+- Create MySQL database and user
+- Clone/upload project
+- Run composer install --no-dev --optimize-autoloader
+- Run npm run build
+- Configure .env for production
+- Run php artisan migrate --force
+- Run php artisan storage:link
+- Set document root to /public
+- Add cron job via CloudPanel cron manager
+- Set up queue worker via CloudPanel supervisor or system service
+
+**Monitoring:**
+- Laravel Telescope (dev only)
+- Log failed jobs to notification_logs
+- Failed job retry mechanism
+- Email admin on critical failures (queue down, etc.)
+
+**Final Checklist:**
+- All .env variables documented in .env.example
+- README.md with full setup instructions
+- All API keys in .env (never hardcoded)
+- Storage symlink created
+- Queue worker running
+- Cron job active
+- Test end-to-end: add show → schedule → wait for reminder → email arrives → SMS arrives
+
+---
+
+## IMPORTANT RULES FOR THE AI AGENT
+
+1. **Always read plan.md before starting any phase** — follow it exactly
+2. **Create plan.md FIRST before writing any code**
+3. **Use Laravel 13 syntax** — use PHP 8.3 attributes where applicable, use routes/console.php for scheduler (not Kernel.php which is removed in Laravel 11+)
+4. **SMTP mail is the ONLY mail driver** — never use PHP mail() function. Use Laravel's Mail facade with runtime SMTP config from user_smtp_settings table. Fallback to .env SMTP credentials.
+5. **SMS is disabled by default** — user must explicitly enable it in settings
+6. **Email is enabled by default** — user can disable it in settings
+7. **All sensitive data encrypted** — SMTP passwords and SMS API keys use Laravel Crypt::encrypt() before storing and Crypt::decrypt() when reading
+8. **Queue everything** — never send emails or SMS synchronously in a request. Always dispatch a Job.
+9. **Timezone aware** — always store datetimes in UTC, display in user's local timezone
+10. **Mobile responsive** — all UI must be fully responsive with TailwindCSS
+11. **Livewire for dynamic UI** — search, toggles, real-time updates use Livewire 3 components
+12. **Alpine.js for micro-interactions** — countdown timers, dropdowns, modals use Alpine.js
+13. **Cache API responses** — TMDB and Jikan responses cached for 24 hours using Laravel Cache
+14. **Error handling** — all external API calls and SMS/email sends wrapped in try/catch, errors logged
+15. **Soft deletes on shows** — so user can restore accidentally deleted shows
+16. **No hardcoded API keys** — everything in .env
+
+---
+
+## .ENV VARIABLES REFERENCE (document all of these in plan.md)
+APP_NAME="WatchList Reminder"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=watchlist_db
+DB_USERNAME=root
+DB_PASSWORD=
+CACHE_DRIVER=file
+QUEUE_CONNECTION=database
+SESSION_DRIVER=file
+Default SMTP (fallback if user has no custom SMTP)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@yourdomain.com
+MAIL_FROM_NAME="${APP_NAME}"
+TMDB API
+TMDB_API_KEY=
+TMDB_BASE_URL=https://api.themoviedb.org/3
+TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
+Jikan (no key needed)
+JIKAN_BASE_URL=https://api.jikan.moe/v4
+Admin
+ADMIN_EMAIL=admin@yourdomain.com
+
+---
+
+## START INSTRUCTIONS
+
+Begin by creating `plan.md` with ALL of the above fully documented. After plan.md is created and complete, ask for confirmation before proceeding to Phase 1. Each phase should be completed fully before moving to the next. After each phase, summarize what was built and what to run.You are an expert Laravel 13 full-stack developer. Your first task is to create a detailed `plan.md` file before writing any code. This plan will guide the entire development of a WatchList Reminder Web Application built with Laravel 13, MySQL, Blade + Alpine.js + Livewire, and TailwindCSS.
+
+---
+
+## PROJECT OVERVIEW
+
+Build a full-featured WatchList Reminder Application where users can:
+- Register and login with their own accounts
+- Add dramas, movies, anime, TV series, and any watchable content to their personal watchlist
+- Auto-fetch content details (poster, description, episodes, air dates) from free APIs
+- Set smart episode schedule patterns (daily, weekly, bi-weekly, custom, etc.)
+- Receive email (SMTP) and SMS reminders before new episodes air
+- Manage all notification preferences from their dashboard
+- View notification history and upcoming episode schedule
+
+---
+
+## TECH STACK
+
+- **Framework:** Laravel 13
+- **PHP:** 8.3+
+- **Database:** MySQL 8.0+
+- **Frontend:** Blade templates + Alpine.js + Livewire 3 + TailwindCSS 3
+- **Auth:** Laravel Breeze (Blade stack)
+- **Mail:** SMTP via Laravel Mail (config via .env — NOT php mail())
+- **SMS:** Custom HTTP gateway integration (ViserLab SMSLab PHP script via cURL POST)
+- **Queue/Jobs:** Laravel Queue (database driver, upgradeable to Redis)
+- **Scheduler:** Laravel Task Scheduler (cron every 15 minutes)
+- **APIs Used (all free):**
+  - TMDB API (movies, TV series, dramas) — free API key required
+  - Jikan API v4 (anime) — completely free, no key needed
+  - YouTube oEmbed API (fetch title + thumbnail from YouTube links) — free, no key
+  - Open Library / manual entry fallback
+
+---
+
+## PLAN.MD REQUIREMENTS
+
+Create a file called `plan.md` in the project root. This file must contain:
+
+1. Full project description and goals
+2. Complete database schema (all tables, columns, relationships, indexes)
+3. All API integrations explained
+4. Notification system architecture explained
+5. SMS gateway integration explained
+6. 10 development phases (detailed below)
+
+---
+
+## THE 10 PHASES (each phase must include):
+- Phase title and goal
+- List of files to create (with exact paths)
+- List of artisan commands to run
+- Step-by-step implementation instructions
+- Any .env variables needed for that phase
+- Expected outcome / what works after this phase is complete
+
+---
+
+### PHASE 1 — Project Setup & Configuration
+- Install Laravel 13 via composer
+- Configure .env for MySQL database connection
+- Configure .env for SMTP mail (host, port, username, password, from address, from name)
+- Install and configure TailwindCSS 3 via Vite
+- Install Alpine.js
+- Install Livewire 3
+- Install Laravel Breeze (Blade + Alpine stack)
+- Set APP_NAME, APP_URL, APP_ENV, APP_DEBUG
+- Set QUEUE_CONNECTION=database
+- Set up base layout (app.blade.php) with sidebar navigation, topbar, responsive mobile menu
+- Create a beautiful dark-mode supported UI shell with TailwindCSS
+- Run initial migrations
+- Expected: App loads, auth pages (login/register) work, dashboard shows placeholder
+
+---
+
+### PHASE 2 — Database Schema & Models
+Create ALL migrations and Eloquent models for the entire application:
+
+Tables needed:
+- `users` — id, name, email, password, phone, timezone, avatar, email_notifications (boolean, default true), sms_notifications (boolean, default false), sms_gateway_enabled (boolean, default false), remember_token, timestamps
+- `shows` — id, user_id (FK), title, slug, type (enum: drama, movie, anime, tv_series, anime_movie, other), description, poster_url, backdrop_url, tmdb_id, jikan_id, imdb_id, status (enum: watching, completed, on_hold, dropped, plan_to_watch), country, language, total_episodes, genres (json), rating, year, timestamps, soft_deletes
+- `episodes` — id, show_id (FK), season_no (nullable), episode_no, title (nullable), description (nullable), air_datetime (datetime), duration_minutes, thumbnail_url, youtube_link (nullable), is_aired (boolean default false), notified (boolean default false), timestamps
+- `schedules` — id, show_id (FK), pattern (enum: daily, weekly, bi_weekly, twice_per_week, monthly, irregular, movie_one_time), days_of_week (json, nullable — e.g. ["monday","friday"]), air_time (time), timezone, episodes_per_slot (int default 1), start_date (date), end_date (nullable), is_active (boolean default true), timestamps
+- `reminders` — id, user_id (FK), show_id (FK), episode_id (FK nullable), remind_before_minutes (int — e.g. 30, 60, 1440 for 1 day), channels (json — ["email","sms"]), is_active (boolean default true), timestamps
+- `notification_logs` — id, user_id (FK), show_id (FK), episode_id (FK), channel (enum: email, sms), status (enum: sent, failed, pending), message, error_message (nullable), sent_at, timestamps
+- `user_smtp_settings` — id, user_id (FK unique), host, port, username, password (encrypted), encryption (enum: tls, ssl, none), from_address, from_name, is_active (boolean default true), tested_at (nullable), timestamps
+- `user_sms_settings` — id, user_id (FK unique), gateway_url, api_key (encrypted, nullable), sender_id (nullable), extra_params (json, nullable — for ViserLab SMSLab params), is_active (boolean default true), tested_at (nullable), timestamps
+- `watchlist_notes` — id, user_id (FK), show_id (FK), note (text), timestamps
+
+Models: User, Show, Episode, Schedule, Reminder, NotificationLog, UserSmtpSetting, UserSmsSetting, WatchlistNote
+
+All models must have:
+- Proper fillable arrays
+- Relationships (hasMany, belongsTo, etc.)
+- Casts (json columns as arrays, booleans, datetimes)
+- Scopes where useful
+- SoftDeletes on Show model
+
+Expected: All tables created, models ready, relationships working
+
+---
+
+### PHASE 3 — Authentication & User Profile
+- Laravel Breeze already installed in Phase 1
+- Extend registration form: add phone field (optional), timezone selector
+- User profile page: update name, email, phone, timezone, avatar upload
+- Change password section
+- Account deletion option
+- Beautiful profile UI with TailwindCSS cards
+- Timezone support: use PHP timezones list for dropdown
+- Store avatar in storage/app/public/avatars, create symlink
+
+Expected: Full auth flow, profile management works
+
+---
+
+### PHASE 4 — Notification Settings (SMTP + SMS)
+This is a critical phase. Build the notification settings page:
+
+**Email (SMTP) Settings:**
+- Form fields: SMTP Host, Port, Username, Password, Encryption (TLS/SSL/None), From Address, From Name
+- "Send Test Email" button — sends a test email using the user's own SMTP credentials
+- Save/update SMTP settings (password stored encrypted using Laravel's encrypt())
+- Toggle: Enable/Disable email notifications (default: ENABLED)
+- Show connection status (tested / not tested)
+
+**SMS Settings:**
+- Form fields: Gateway URL (their ViserLab SMSLab script URL), API Key (optional), Sender ID (optional), Extra POST params (key-value pairs, stored as JSON)
+- "Send Test SMS" button — sends a test SMS to the user's phone number
+- Toggle: Enable/Disable SMS notifications (default: DISABLED)
+- Instructions text explaining how to connect ViserLab SMSLab
+
+**Global notification preferences:**
+- Reminder timing options: 15 min, 30 min, 1 hour, 2 hours, 6 hours, 12 hours, 1 day before episode
+- User can select multiple reminder timings (stored as JSON array)
+- Per-show override option (explained in Phase 6)
+
+**Implementation:**
+- Use Livewire component for real-time toggle saving
+- Encrypt sensitive fields (SMTP password, API key) using Laravel's Crypt facade
+- Test email uses Laravel's Mail::mailer() with runtime SMTP config (not .env)
+- Test SMS fires a cURL POST to the user's gateway URL
+
+Expected: User can configure and test both email and SMS. Defaults: email ON, SMS OFF.
+
+---
+
+### PHASE 5 — Content Search & Auto-Fetch System
+Build the content discovery system:
+
+**Search Flow:**
+1. User goes to "Add to Watchlist"
+2. Sees tabs: Search Online | Paste YouTube Link | Manual Entry
+3. **Search Online tab:**
+   - Single search box with type filter (All / Movie / TV Series / Drama / Anime)
+   - Live search using Livewire (debounce 500ms)
+   - For non-anime: hits TMDB API `/search/multi` endpoint
+   - For anime: hits Jikan API `/anime` endpoint
+   - Results show as cards: poster, title, year, type, rating, brief description
+   - Click "Add to Watchlist" on any result
+
+4. **Paste YouTube Link tab:**
+   - User pastes a YouTube URL (episode or trailer)
+   - Fetch via YouTube oEmbed: `https://www.youtube.com/oembed?url={url}&format=json`
+   - Returns: title, thumbnail_url, author_name
+   - Auto-fill the manual entry form with fetched data
+
+5. **Manual Entry tab:**
+   - Full form: title, type, description, poster URL or upload, total episodes, year, country, language, genres
+
+**TMDB Integration:**
+- Store TMDB_API_KEY in .env
+- Create App\Services\TmdbService class
+- Methods: search($query, $type), getMovieDetails($tmdbId), getTvDetails($tmdbId), getEpisodes($tmdbId, $season)
+- Cache API responses for 24 hours using Laravel Cache
+
+**Jikan Integration:**
+- Create App\Services\JikanService class
+- Methods: search($query), getAnimeDetails($jikanId), getEpisodes($jikanId)
+- No API key needed
+- Cache responses for 24 hours
+
+**YouTube oEmbed Integration:**
+- Create App\Services\YoutubeService class
+- Method: fetchDetails($url) — returns title, thumbnail, channel
+
+Expected: User can search and add any content. Poster and details auto-fill.
+
+---
+
+### PHASE 6 — Episode Scheduler & Smart Schedule Engine
+This is the most complex phase. Build the episode scheduling system.
+
+**When adding a show, after content details are fetched, show a Schedule Setup form:**
+
+Schedule patterns (user selects one):
+1. **Daily** — one new episode every day at [time]
+2. **Weekly (1 episode)** — every [day of week] at [time]
+3. **Weekly (2 episodes same day)** — every [day] at [time1] and [time2]
+4. **Bi-weekly** — every [day1] and [day2] at [time]
+5. **Twice per week (different times)** — [day1] at [time1] and [day2] at [time2]
+6. **Monthly** — on day [X] of each month at [time]
+7. **One-time / Movie** — single date and time picker (for movies or special episodes)
+8. **Irregular / Manual** — user adds episode air dates one by one
+
+**Schedule Engine (App\Services\ScheduleEngine):**
+- Method: generateEpisodes(Show $show, Schedule $schedule, int $fromEpisode = 1)
+- Auto-calculates all future episode air_datetime values from pattern
+- Stores each as an Episode record in the database
+- If total_episodes is known: generate all episodes
+- If unknown (ongoing): generate next 30 episodes, re-run weekly via scheduler
+- Handles timezone conversion (user timezone → UTC for storage)
+- Method: regenerateFromEpisode(Show $show, int $episodeNo) — for when user updates schedule
+
+**Per-show reminder overrides:**
+- On each show's detail page, user can override global reminder settings
+- Set custom reminder timing just for that show
+- Enable/disable notifications just for that show
+
+**Episode management page per show:**
+- List all episodes with air dates
+- Mark episode as aired manually
+- Edit individual episode's air datetime
+- Add a custom note per episode
+- Attach YouTube link to any episode
+
+Expected: After adding a show with a schedule, all episode dates are auto-generated and visible.
+
+---
+
+### PHASE 7 — Reminder Engine & Notification Dispatch
+Build the core notification system.
+
+**Laravel Scheduler (app/Console/Kernel.php or routes/console.php in Laravel 13):**
+- Every 15 minutes: run CheckUpcomingEpisodes command
+- Daily at midnight: run GenerateUpcomingEpisodes command (generates next 30 episodes for ongoing shows)
+- Daily at 6am: run SendDailySummary command (optional digest email)
+
+**CheckUpcomingEpisodes Command (App\Console\Commands\CheckUpcomingEpisodes):**
+- Query all episodes where:
+  - is_aired = false
+  - notified = false
+  - air_datetime is within the next [remind_before_minutes] window
+  - Show has active reminders
+  - User has notifications enabled
+- For each matching episode:
+  - Dispatch SendEpisodeReminderJob to the queue
+  - Mark episode as notified = true
+
+**SendEpisodeReminderJob (App\Jobs\SendEpisodeReminderJob):**
+- Receives: Episode, User, channels (email, sms)
+- For email channel:
+  - Check if user has custom SMTP settings → use those
+  - Fallback to .env SMTP if no custom settings
+  - Send using App\Mail\EpisodeReminderMail Mailable
+  - Beautiful HTML email: show poster, episode number, title, air time, countdown
+- For SMS channel:
+  - Check if user has SMS settings and sms_notifications enabled
+  - Build message string: "Reminder: [Show Name] Episode [X] airs in [Y] minutes! Don't miss it."
+  - Fire cURL POST to user's gateway URL with their params
+  - Handle response and log success/failure
+- Log result to notification_logs table
+
+**App\Mail\EpisodeReminderMail:**
+- Blade email template (resources/views/emails/episode-reminder.blade.php)
+- Responsive HTML email design
+- Show poster image, show title, episode number, episode title (if known)
+- Air time in user's timezone
+- Countdown (e.g. "Airs in 30 minutes!")
+- Footer with unsubscribe-style link to notification settings
+
+**App\Services\SmsService:**
+- Method: send(User $user, string $message): bool
+- Reads user's UserSmsSetting
+- Builds POST params (gateway_url, api_key, sender_id, extra_params + phone + message)
+- Fires cURL POST
+- Returns true/false based on HTTP response
+
+Expected: Reminders fire automatically. Emails and SMS sent at correct times.
+
+---
+
+### PHASE 8 — Dashboard & Watchlist UI
+Build the main user interface.
+
+**Dashboard (/):**
+- Welcome card with user's name and stats (total shows, upcoming today, this week)
+- "Airing Today" section — episodes airing today with countdown timers (Alpine.js)
+- "Airing This Week" section — calendar-style view of upcoming episodes
+- "Recently Added" shows
+- Quick-add button
+
+**My Watchlist (/watchlist):**
+- Filter tabs: All | Watching | Completed | On Hold | Dropped | Plan to Watch
+- Search/filter by title, type, genre
+- Grid view and List view toggle (saved in localStorage)
+- Show cards: poster, title, type, progress (episode X of Y), next episode date, status badge
+- Quick actions: Mark next episode watched, Edit, Remove
+- Pagination (or infinite scroll with Livewire)
+
+**Show Detail Page (/shows/{slug}):**
+- Full show info: poster, backdrop, title, description, genres, rating, country
+- Episode list with air dates, status (aired/upcoming), YouTube link icon
+- Schedule info display
+- Reminder settings override panel
+- Notes section (add/edit personal notes about the show)
+- "Mark as Watched" per episode button
+
+**Upcoming Episodes (/upcoming):**
+- Full calendar or list view of all upcoming episodes across all shows
+- Filter by date range, show, type
+- Countdown timers for each
+
+**Notification History (/notifications/history):**
+- Table of all sent notifications
+- Columns: Show, Episode, Channel (email/sms), Status (sent/failed), Sent At
+- Filter by status, channel, date
+- Retry failed notifications button
+
+Expected: Full beautiful UI working end-to-end.
+
+---
+
+### PHASE 9 — Advanced Features
+Add power-user features:
+
+**Import from MAL/AniList (manual JSON):**
+- User can paste/upload a JSON export from MyAnimeList
+- App parses and bulk-adds anime to their watchlist
+
+**Show Recommendations (simple):**
+- Based on genres of shows the user is watching
+- Query TMDB /discover endpoint with matching genres
+- Show as "You might also like" section on dashboard
+
+**Progress Tracking:**
+- Track which episodes user has watched (separate from air tracking)
+- Progress bar per show
+- "Continue Watching" section on dashboard
+
+**Multiple Reminder Timings per Show:**
+- User can set multiple reminder times for one show
+- e.g. "Remind me 1 day before AND 30 minutes before"
+- Stored as array in reminders table
+
+**Public Share Page (optional, toggleable):**
+- User can make their watchlist public
+- Shareable URL like /u/{username}/watchlist
+- Read-only view of their currently watching shows
+
+**Admin Panel:**
+- Simple admin area at /admin
+- View all users, total shows, notification logs
+- Manually trigger the reminder checker
+- View system health (queue status, failed jobs)
+- Global TMDB/Jikan API status check
+
+**Dark Mode:**
+- Full dark mode support with TailwindCSS dark: classes
+- Toggle in topbar, saved in localStorage and synced to user profile
+
+Expected: App is feature-complete with power features.
+
+---
+
+### PHASE 10 — Production Deployment & Optimization
+Prepare for production on CloudPanel:
+
+**Performance:**
+- Run php artisan optimize
+- php artisan config:cache
+- php artisan route:cache
+- php artisan view:cache
+- php artisan event:cache
+- Set up Laravel Queue Worker as a system service (supervisor config provided)
+- Set up cron job: * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1
+
+**Security:**
+- Set APP_ENV=production, APP_DEBUG=false
+- Encrypt all sensitive DB fields (SMTP passwords, SMS API keys) — already done in Phase 4
+- Set proper file permissions (storage, bootstrap/cache)
+- Add rate limiting to auth routes and API endpoints
+- CSRF protection (Laravel default)
+- XSS protection (Blade auto-escaping)
+
+**CloudPanel Setup Instructions:**
+- Create PHP 8.3 site in CloudPanel
+- Create MySQL database and user
+- Clone/upload project
+- Run composer install --no-dev --optimize-autoloader
+- Run npm run build
+- Configure .env for production
+- Run php artisan migrate --force
+- Run php artisan storage:link
+- Set document root to /public
+- Add cron job via CloudPanel cron manager
+- Set up queue worker via CloudPanel supervisor or system service
+
+**Monitoring:**
+- Laravel Telescope (dev only)
+- Log failed jobs to notification_logs
+- Failed job retry mechanism
+- Email admin on critical failures (queue down, etc.)
+
+**Final Checklist:**
+- All .env variables documented in .env.example
+- README.md with full setup instructions
+- All API keys in .env (never hardcoded)
+- Storage symlink created
+- Queue worker running
+- Cron job active
+- Test end-to-end: add show → schedule → wait for reminder → email arrives → SMS arrives
+
+---
+
+## IMPORTANT RULES FOR THE AI AGENT
+
+1. **Always read plan.md before starting any phase** — follow it exactly
+2. **Create plan.md FIRST before writing any code**
+3. **Use Laravel 13 syntax** — use PHP 8.3 attributes where applicable, use routes/console.php for scheduler (not Kernel.php which is removed in Laravel 11+)
+4. **SMTP mail is the ONLY mail driver** — never use PHP mail() function. Use Laravel's Mail facade with runtime SMTP config from user_smtp_settings table. Fallback to .env SMTP credentials.
+5. **SMS is disabled by default** — user must explicitly enable it in settings
+6. **Email is enabled by default** — user can disable it in settings
+7. **All sensitive data encrypted** — SMTP passwords and SMS API keys use Laravel Crypt::encrypt() before storing and Crypt::decrypt() when reading
+8. **Queue everything** — never send emails or SMS synchronously in a request. Always dispatch a Job.
+9. **Timezone aware** — always store datetimes in UTC, display in user's local timezone
+10. **Mobile responsive** — all UI must be fully responsive with TailwindCSS
+11. **Livewire for dynamic UI** — search, toggles, real-time updates use Livewire 3 components
+12. **Alpine.js for micro-interactions** — countdown timers, dropdowns, modals use Alpine.js
+13. **Cache API responses** — TMDB and Jikan responses cached for 24 hours using Laravel Cache
+14. **Error handling** — all external API calls and SMS/email sends wrapped in try/catch, errors logged
+15. **Soft deletes on shows** — so user can restore accidentally deleted shows
+16. **No hardcoded API keys** — everything in .env
+
+---
+
+## .ENV VARIABLES REFERENCE (document all of these in plan.md)
+APP_NAME="WatchList Reminder"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=watchlist_db
+DB_USERNAME=root
+DB_PASSWORD=
+CACHE_DRIVER=file
+QUEUE_CONNECTION=database
+SESSION_DRIVER=file
+Default SMTP (fallback if user has no custom SMTP)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@yourdomain.com
+MAIL_FROM_NAME="${APP_NAME}"
+TMDB API
+TMDB_API_KEY=
+TMDB_BASE_URL=https://api.themoviedb.org/3
+TMDB_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
+Jikan (no key needed)
+JIKAN_BASE_URL=https://api.jikan.moe/v4
+Admin
+ADMIN_EMAIL=admin@yourdomain.com
+
+---
+
+## START INSTRUCTIONS
+
+Begin by creating `plan.md` with ALL of the above fully documented. After plan.md is created and complete, ask for confirmation before proceeding to Phase 1. Each phase should be completed fully before moving to the next. After each phase, summarize what was built and what to run.

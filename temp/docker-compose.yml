@@ -33,7 +33,7 @@ services:
       - entremi_storage:/var/www/html/storage
       - entremi_bootstrap:/var/www/html/bootstrap/cache
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "curl -s http://127.0.0.1/ > /dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10

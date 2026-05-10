@@ -106,6 +106,39 @@ class ShowController extends Controller
     }
 
     /**
+     * Store a new show via quick-add.
+     */
+    public function quickStore(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title'          => ['required', 'string', 'max:255'],
+            'type'           => ['required', 'in:drama,movie,anime,tv_series,anime_movie,other'],
+            'status'         => ['required', 'in:watching,completed,on_hold,dropped,plan_to_watch'],
+            'description'    => ['nullable', 'string'],
+            'poster_url'     => ['nullable', 'url'],
+            'backdrop_url'   => ['nullable', 'url'],
+            'tmdb_id'        => ['nullable', 'string'],
+            'jikan_id'       => ['nullable', 'string'],
+            'year'           => ['nullable', 'string', 'max:10'],
+            'rating'         => ['nullable', 'string', 'max:10'],
+            'total_episodes' => ['nullable', 'integer', 'min:1'],
+            'country'        => ['nullable', 'string', 'max:80'],
+            'language'       => ['nullable', 'string', 'max:80'],
+            'genres'         => ['nullable', 'array'],
+            'genres.*'       => ['string'],
+        ]);
+
+        $data['user_id'] = auth()->id();
+        $data['slug']    = Show::generateUniqueSlug($data['title']);
+
+        $show = Show::create($data);
+
+        return redirect()
+            ->route('watchlist.show', $show->slug)
+            ->with('success', '"' . $show->title . '" added to your watchlist!');
+    }
+
+    /**
      * Display a show's detail page.
      */
     public function show(string $slug): View

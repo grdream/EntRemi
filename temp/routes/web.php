@@ -43,15 +43,23 @@ Route::middleware('auth')->group(function () {
     Route::get('/watchlist',                [ShowController::class, 'index'])->name('watchlist.index');
     Route::get('/watchlist/add',            [ShowController::class, 'create'])->name('watchlist.create');
     Route::post('/watchlist',               [ShowController::class, 'store'])->name('watchlist.store');
+    Route::post('/watchlist/quick-add',     [ShowController::class, 'quickStore'])->name('watchlist.quick-add');
     Route::get('/watchlist/{slug}',         [ShowController::class, 'show'])->name('watchlist.show');
     Route::get('/watchlist/{slug}/edit',    [ShowController::class, 'edit'])->name('watchlist.edit');
     Route::put('/watchlist/{slug}',         [ShowController::class, 'update'])->name('watchlist.update');
     Route::delete('/watchlist/{slug}',      [ShowController::class, 'destroy'])->name('watchlist.destroy');
 
-    // Admin Routes
-    Route::prefix('admin')->middleware('admin')->group(function () {
-        Route::get('/notifications', [\App\Http\Controllers\AdminController::class, 'notifications'])->name('admin.notifications');
-        Route::get('/notifications/export', [\App\Http\Controllers\AdminController::class, 'exportCsv'])->name('admin.notifications.export');
+    // ─── Admin Routes (admin middleware) ──────────────────────────────────────
+    Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
+        Route::get('/',                          [\App\Http\Controllers\AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/users',                     [\App\Http\Controllers\AdminController::class, 'users'])->name('users');
+        Route::get('/users/{user}/edit',         [\App\Http\Controllers\AdminController::class, 'editUser'])->name('users.edit');
+        Route::put('/users/{user}',              [\App\Http\Controllers\AdminController::class, 'updateUser'])->name('users.update');
+        Route::delete('/users/{user}',           [\App\Http\Controllers\AdminController::class, 'destroyUser'])->name('users.destroy');
+        Route::get('/settings',                  [\App\Http\Controllers\AdminController::class, 'settings'])->name('settings');
+        Route::post('/settings',                 [\App\Http\Controllers\AdminController::class, 'saveSettings'])->name('settings.save');
+        Route::get('/notifications',             [\App\Http\Controllers\AdminController::class, 'notifications'])->name('notifications');
+        Route::get('/notifications/export',      [\App\Http\Controllers\AdminController::class, 'exportCsv'])->name('notifications.export');
     });
 
     // Notification History (per-user)
@@ -90,5 +98,14 @@ Route::middleware('auth')->group(function () {
     // Upcoming Episodes
     Route::get('/upcoming', [UpcomingController::class, 'index'])->name('upcoming.index');
 });
+
+// \u2500\u2500\u2500 Web Installer (locked after first install) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+if (!file_exists(storage_path('installed.lock'))) {
+    Route::get('/install',          [\App\Http\Controllers\InstallController::class, 'index'])->name('install.index');
+    Route::post('/install/check-db', [\App\Http\Controllers\InstallController::class, 'checkDb'])->name('install.checkDb');
+    Route::post('/install/run',     [\App\Http\Controllers\InstallController::class, 'run'])->name('install.run');
+} else {
+    Route::get('/install', fn() => redirect('/login'))->name('install.index');
+}
 
 require __DIR__.'/auth.php';

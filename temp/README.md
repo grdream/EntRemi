@@ -1,176 +1,96 @@
-# WatchList Reminder
+# EntRemi - WatchList Reminder
 
-A premium dark-mode WatchList & Episode Reminder application built with **Laravel 12**, Livewire 3, Alpine.js, and TailwindCSS 3. Track dramas, movies, and anime — and get automated email/SMS reminders before episodes air.
-
----
-
-## ✨ Features
-
-- 🎬 Watchlist with status tracking (Watching / Completed / Plan to Watch / On Hold / Dropped)
-- 🔍 Auto-search from TMDB & Jikan (MyAnimeList) APIs
-- 📅 Smart episode scheduling (daily, weekly, bi-weekly, etc.)
-- 📧 Email reminders via custom SMTP (per user)
-- 📱 SMS reminders via custom HTTP gateway
-- 📊 Admin notification log dashboard with CSV export
-- 📝 Personal notes per show
-- 🔔 Reminder configuration (30min / 1hr / 2hr / 1-day before)
-- 🌙 Dark mode preference stored in database
-- 📥 Bulk JSON importer (MALSync / Anilist compatible)
+An enterprise-grade SaaS application for tracking TV Shows, Anime, Movies, and Dramas. 
+EntRemi automatically fetches data from TMDB and Jikan, generates episode schedules, and sends automated Email and SMS reminders before episodes air.
 
 ---
 
-## 🚀 Production Setup
+## 🚀 Easy Web Installation (No Terminal Required)
 
-### Requirements
-- PHP 8.2+
-- MySQL 8.0+ **or** MariaDB 10.6+
-- Composer 2.x
-- Node.js 18+ / npm
-- Redis (optional, for queue)
+EntRemi features a **Zero-Command Web Installer**. You don't need SSH or terminal access to install it. It works perfectly on shared hosting panels like **cPanel, Hostinger hPanel, and CloudPanel**.
+
+### Step-by-Step Deployment Guide
+
+1. **Upload the Files**
+   - Compress your EntRemi project folder into a `.zip` file.
+   - Go to your hosting panel's **File Manager** and upload the `.zip` file to your server (usually inside `public_html` or your domain's folder).
+   - Extract the `.zip` file.
+
+2. **Set the Document Root**
+   - **cPanel:** Go to *Domains* -> Find your domain -> Click *Manage* -> Change the Document Root to `/public_html/entremi/public` (point it to the `public` folder inside the extracted directory).
+   - **hPanel (Hostinger):** Go to *Websites* -> *Manage* -> *Advanced* -> *Folder Index* or use the *Subdomain/Addon Domain* settings to point to the `/public` folder.
+   - **CloudPanel:** Go to *Sites* -> Select your site -> *Settings* -> *Vhost* -> Set the Document Root to `/home/user/htdocs/yourdomain.com/public`.
+
+3. **Create a Database**
+   - Go to the **MySQL Databases** section of your hosting panel.
+   - Create a new Database.
+   - Create a new Database User and generate a strong password.
+   - Assign the User to the Database with **All Privileges**.
+
+4. **Run the Web Installer**
+   - Open your web browser and go to your domain: `https://yourdomain.com/install`
+   - The EntRemi Web Installer will appear.
+   - Follow the 5-step wizard to:
+     1. Check system requirements (PHP 8.2+, extensions, folder permissions).
+     2. Enter the Database credentials you created in Step 3.
+     3. Set your Site Name and create your **Super Admin** account.
+     4. (Optional) Configure System Email (SMTP).
+     5. Click **Install**. The system will automatically configure `.env`, run migrations, and secure itself.
+
+5. **Setup Cron Jobs (Automated Reminders)**
+   - To send scheduled emails and SMS, Laravel needs a cron job to run every minute.
+   - **cPanel/hPanel:** Go to *Cron Jobs* -> Add a new cron job -> Set it to run **Once Per Minute (`* * * * *`)** -> Enter the following command:
+     ```bash
+     /usr/local/bin/php /home/yourusername/public_html/entremi/artisan schedule:run >> /dev/null 2>&1
+     ```
+     *(Note: Replace `/usr/local/bin/php` with the correct path to PHP 8.2 on your server, and update the path to your `artisan` file).*
 
 ---
 
-### 1. Clone & Install
+<details>
+<summary><strong>Advanced: Manual / VPS Installation (Terminal)</strong></summary>
 
+If you have SSH access to a VPS (Ubuntu/Debian) and prefer to install manually using Composer and Artisan:
+
+### 1. Prerequisites
+- PHP 8.2+ (with extensions: pdo_mysql, mbstring, openssl, xml, zip, curl)
+- MySQL 8.0+ or MariaDB 10.4+
+- Composer
+- Node.js & NPM (for frontend assets)
+- Nginx or Apache
+
+### 2. Install Dependencies
 ```bash
-git clone https://github.com/youruser/EntrRemi.git
-cd EntRemi
+git clone <your-repo-url> entremi
+cd entremi
 composer install --optimize-autoloader --no-dev
 npm install && npm run build
 ```
 
----
-
-### 2. Environment Configuration
-
-Copy and edit the environment file:
-
+### 3. Environment Setup
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
+Edit `.env` and set your database credentials and `ADMIN_EMAIL`.
 
-Edit `.env`:
-
-```dotenv
-APP_NAME="WatchList Reminder"
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://yourdomain.com
-
-# ──────────────────── DATABASE ────────────────────
-# For MySQL:
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=entremi
-DB_USERNAME=entremi_user
-DB_PASSWORD=your_strong_password
-
-# For MariaDB (same driver):
-# DB_CONNECTION=mysql
-# DB_HOST=127.0.0.1
-# DB_PORT=3306
-# DB_DATABASE=entremi
-# DB_USERNAME=entremi_user
-# DB_PASSWORD=your_strong_password
-
-# ──────────────────── QUEUE ────────────────────
-QUEUE_CONNECTION=database
-# Or use Redis for production:
-# QUEUE_CONNECTION=redis
-# REDIS_HOST=127.0.0.1
-# REDIS_PORT=6379
-
-# ──────────────────── CACHE / SESSION ────────────────────
-CACHE_STORE=file
-SESSION_DRIVER=database
-SESSION_LIFETIME=120
-
-# ──────────────────── MAIL (System Default) ────────────────────
-# Each user can override this with their own SMTP in Profile → Gateways
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.mailtrap.io
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="noreply@yourdomain.com"
-MAIL_FROM_NAME="WatchList Reminder"
-
-# ──────────────────── OPTIONAL APIS ────────────────────
-TMDB_API_KEY=your_tmdb_read_access_token
-ADMIN_EMAIL=admin@yourdomain.com
-
-# ──────────────────── FILESYSTEM ────────────────────
-FILESYSTEM_DISK=local
-```
-
----
-
-### 3. Database Setup (MySQL / MariaDB)
-
-Create the database first:
-
-```sql
-CREATE DATABASE entremi CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'entremi_user'@'localhost' IDENTIFIED BY 'your_strong_password';
-GRANT ALL PRIVILEGES ON entremi.* TO 'entremi_user'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-Run migrations and seeders:
-
+### 4. Database Migration & Setup
 ```bash
 php artisan migrate --force
-php artisan db:seed --force   # optional: creates demo admin
 ```
 
----
-
-### 4. Storage & Permissions
-
+### 5. Permissions
 ```bash
-php artisan storage:link
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
----
-
-### 5. Optimize for Production
-
-```bash
-php artisan optimize
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
-```
-
----
-
-### 6. Cron Job (Scheduler)
-
-Add to the server crontab (`crontab -e`):
-
-```cron
-# Run Laravel scheduler every minute (it decides what to run internally)
-* * * * * php /var/www/entremi/artisan schedule:run >> /dev/null 2>&1
-```
-
-The scheduler is configured to check for upcoming episodes every 15 minutes and dispatch reminder jobs.
-
----
-
-### 7. Queue Worker (Supervisor)
-
-Install Supervisor and create `/etc/supervisor/conf.d/entremi-worker.conf`:
-
+### 6. Background Workers (Supervisor)
+Create `/etc/supervisor/conf.d/entremi.conf`:
 ```ini
 [program:entremi-worker]
-command=php /var/www/entremi/artisan queue:work database --sleep=3 --tries=3 --max-time=3600
-directory=/var/www/entremi
+process_name=%(program_name)s_%(process_num)02d
+command=php /path/to/entremi/artisan queue:work --sleep=3 --tries=3 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -178,93 +98,44 @@ killasgroup=true
 user=www-data
 numprocs=2
 redirect_stderr=true
-stdout_logfile=/var/log/entremi-worker.log
+stdout_logfile=/path/to/entremi/storage/logs/worker.log
 stopwaitsecs=3600
 ```
-
-Activate it:
-
+Then run:
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start entremi-worker:*
 ```
 
----
-
-### 8. Nginx Config (Example)
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    root /var/www/entremi/public;
-
-    index index.php;
-    charset utf-8;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-}
-```
-
----
-
-## 🔄 Updates / Redeployment
-
+### 7. Cron Job
+Run `crontab -e` and add:
 ```bash
-git pull origin main
-composer install --optimize-autoloader --no-dev
-npm run build
-php artisan migrate --force
-php artisan optimize
-sudo supervisorctl restart entremi-worker:*
+* * * * * cd /path/to/entremi && php artisan schedule:run >> /dev/null 2>&1
 ```
 
----
-
-## 📊 Admin Access
-
-Set `ADMIN_EMAIL` in `.env` to your admin email. The admin user sees the **Admin Console** in the sidebar for notification log observability and CSV export.
+</details>
 
 ---
 
-## 🗄️ Database Compatibility
+## 💎 Features Overview
 
-All migrations use standard Laravel Blueprint types compatible with:
-- ✅ **MySQL 5.7+** / **MySQL 8.0+**
-- ✅ **MariaDB 10.3+** / **MariaDB 10.6+**
-- ✅ **SQLite 3.x** (for local development only)
+### SaaS Architecture
+- **Multi-tenant:** Designed to handle multiple users with isolated watchlists.
+- **Plan System:** `Free` (Email only) vs `Premium` (Email + SMS custom gateways).
+- **Admin Dashboard:** Full user management, plan toggling, and system-wide setting control.
 
-The `json()` column type is used for `channels`, `days_of_week`, `extra_params`, and `genres` — supported natively by MySQL 5.7.8+ and MariaDB 10.2.7+.
+### Smart Reminders
+- Automatic air-date calculation based on configurable scheduling patterns.
+- Daily, Weekly, Bi-weekly, or custom interval scheduling.
+- Resilient notification engine with history logs and failure tracking.
 
----
+### Data Fetching
+- Direct integration with **TMDB** (Movies, TV Shows, Dramas).
+- Direct integration with **Jikan** (MyAnimeList unofficial API for Anime).
+- Zero manual data entry: Search -> Click -> Added.
 
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | PHP 8.2, Laravel 12 |
-| Frontend | Blade, Livewire 3, Alpine.js |
-| Styling | TailwindCSS 3 + Custom glassmorphism |
-| Database | MySQL / MariaDB (SQLite for dev) |
-| Queue | Laravel Queue (database driver) |
-| Scheduler | Laravel Scheduler |
-| APIs | TMDB, Jikan (MyAnimeList), YouTube |
-
----
-
-## 📄 License
-
-MIT License © 2026 WatchList Reminder
+### Modern UI
+- Deep **Dark Mode** & Light Mode integration using TailwindCSS.
+- Alpine.js and Livewire 3 powered SPA-like responsiveness without page reloads.
+- Glassmorphism design system.

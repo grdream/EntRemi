@@ -32,6 +32,11 @@ services:
     volumes:
       - entremi_storage:/var/www/html/storage
       - entremi_bootstrap:/var/www/html/bootstrap/cache
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db:
     image: mariadb:10.11

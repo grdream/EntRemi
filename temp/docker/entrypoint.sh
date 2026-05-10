@@ -37,5 +37,12 @@ if [ -f .env ] || [ ! -z "$APP_KEY" ]; then
     touch /var/www/html/storage/installed.lock
 fi
 
+# IMPORTANT: Fix permissions AGAIN after running artisan commands
+# Otherwise, files like storage/logs/laravel.log will be owned by root, causing a 500 error!
+chown -R www-data:www-data /var/www/html/storage
+chown -R www-data:www-data /var/www/html/bootstrap/cache
+chmod -R 775 /var/www/html/storage
+chmod -R 775 /var/www/html/bootstrap/cache
+
 echo "Starting Supervisor (Apache, Queue Worker, Cron)..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

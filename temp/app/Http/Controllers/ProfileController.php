@@ -45,6 +45,7 @@ class ProfileController extends Controller
         // Handle notification preference checkboxes (unchecked = not in POST body)
         $user->email_notifications = $request->boolean('email_notifications');
         $user->sms_notifications   = $request->boolean('sms_notifications');
+        $user->dark_mode           = $request->boolean('dark_mode', true);
 
         // Reset email verification if email changed
         if ($user->isDirty('email')) {

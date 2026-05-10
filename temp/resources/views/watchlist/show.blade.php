@@ -40,12 +40,15 @@
 
     {{-- Tab Navigation --}}
     <div x-data="{ tab: '{{ request('tab','overview') }}' }" class="space-y-5">
-        <div class="flex gap-1 p-1 bg-surface-100 dark:bg-surface-800/60 rounded-xl border border-surface-200/60 dark:border-surface-700/60 w-fit">
-            @foreach(['overview'=>'Overview','episodes'=>'Episodes','schedule'=>'Schedule'] as $key=>$label)
+        <div class="flex gap-1 p-1 bg-surface-100 dark:bg-surface-800/60 rounded-xl border border-surface-200/60 dark:border-surface-700/60 w-fit overflow-x-auto">
+            @foreach(['overview'=>'Overview','episodes'=>'Episodes','schedule'=>'Schedule','notes'=>'Notes','reminders'=>'Reminders'] as $key=>$label)
             <button @click="tab='{{ $key }}'" :class="tab==='{{ $key }}' ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm' : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'"
-                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5">
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 whitespace-nowrap">
                 @if($key==='episodes')
                 <span class="text-xs px-1.5 py-0.5 rounded-md bg-brand-500/10 text-brand-500 font-bold">{{ $episodeCount }}</span>
+                @endif
+                @if($key==='notes')
+                <span class="text-xs px-1.5 py-0.5 rounded-md bg-accent-500/10 text-accent-500 font-bold">{{ $show->notes->count() }}</span>
                 @endif
                 {{ $label }}
             </button>
@@ -261,6 +264,136 @@
                             Save Schedule
                         </button>
                     </div>
+                </form>
+            </div>
+        </div>
+        {{-- NOTES TAB --}}
+        <div x-show="tab==='notes'" x-transition class="space-y-4">
+            <div class="glass-card p-5">
+                <h2 class="text-sm font-semibold text-surface-900 dark:text-white mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/></svg>
+                    Personal Notes
+                </h2>
+
+                {{-- Add Note Form --}}
+                <form method="POST" action="{{ route('notes.store', $show->slug) }}" class="mb-5">
+                    @csrf
+                    <textarea name="note" rows="3"
+                              class="input-enhanced resize-none w-full mb-3"
+                              placeholder="Add a personal note, thoughts, or reminders about this show…"
+                              id="note-textarea"></textarea>
+                    @error('note')
+                        <p class="text-xs text-red-500 mb-2">{{ $message }}</p>
+                    @enderror
+                    <button type="submit" class="btn-primary py-2 px-4 text-sm" id="add-note-btn">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        Add Note
+                    </button>
+                </form>
+
+                {{-- Notes List --}}
+                @if($show->notes->count() > 0)
+                <div class="space-y-3">
+                    @foreach($show->notes as $note)
+                    <div class="flex items-start gap-3 p-4 rounded-xl bg-surface-50 dark:bg-surface-800/50 border border-surface-200/50 dark:border-surface-700/40 group">
+                        <div class="w-7 h-7 rounded-lg bg-accent-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-3.5 h-3.5 text-accent-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z"/></svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-surface-700 dark:text-surface-300 leading-relaxed">{{ $note->note }}</p>
+                            <p class="text-xs text-surface-400 mt-1.5">{{ $note->created_at->diffForHumans() }}</p>
+                        </div>
+                        <form method="POST" action="{{ route('notes.destroy', [$show->slug, $note->id]) }}" class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-500 transition-colors flex items-center justify-center" title="Delete note">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                    @endforeach
+                </div>
+                @else
+                <div class="text-center py-8">
+                    <svg class="w-10 h-10 text-surface-300 dark:text-surface-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+                    <p class="text-sm text-surface-400">No notes yet. Add your thoughts above!</p>
+                </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- REMINDERS TAB --}}
+        <div x-show="tab==='reminders'" x-transition class="space-y-4">
+            <div class="glass-card p-5">
+                <h2 class="text-sm font-semibold text-surface-900 dark:text-white mb-1 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
+                    Episode Reminders
+                </h2>
+                <p class="text-xs text-surface-400 mb-5">Get notified before each episode airs. Requires SMTP or SMS to be configured.</p>
+
+                @if($reminder)
+                {{-- Current Reminder --}}
+                <div class="p-4 rounded-xl bg-brand-500/5 border border-brand-500/20 mb-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-brand-500/10 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-surface-800 dark:text-surface-200">{{ $reminder->timingLabel() }}</p>
+                            <p class="text-xs text-surface-400">Channels: {{ implode(', ', $reminder->channels ?? []) }}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="text-xs px-2 py-1 rounded-lg {{ $reminder->is_active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-surface-200/60 dark:bg-surface-700/60 text-surface-400' }}">
+                            {{ $reminder->is_active ? 'Active' : 'Paused' }}
+                        </span>
+                        <form method="POST" action="{{ route('reminders.destroy', [$show->slug, $reminder->id]) }}">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors">Remove</button>
+                        </form>
+                    </div>
+                </div>
+                @endif
+
+                {{-- Set / Update Reminder Form --}}
+                <form method="POST" action="{{ $reminder ? route('reminders.update', [$show->slug, $reminder->id]) : route('reminders.store', $show->slug) }}" class="space-y-4">
+                    @csrf
+                    @if($reminder) @method('PUT') @endif
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Remind Me</label>
+                            <select name="remind_before_minutes" class="input-enhanced" id="remind-timing">
+                                @foreach([30=>'30 minutes before', 60=>'1 hour before', 120=>'2 hours before', 1440=>'1 day before'] as $mins=>$label)
+                                <option value="{{ $mins }}" {{ ($reminder?->remind_before_minutes === $mins) ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">Channels</label>
+                            <div class="flex gap-4 mt-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" name="channels[]" value="email"
+                                           class="w-4 h-4 rounded border-surface-300 text-brand-500 cursor-pointer"
+                                           {{ in_array('email', $reminder?->channels ?? []) ? 'checked' : '' }}>
+                                    <span class="text-sm text-surface-600 dark:text-surface-400">Email</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" name="channels[]" value="sms"
+                                           class="w-4 h-4 rounded border-surface-300 text-brand-500 cursor-pointer"
+                                           {{ in_array('sms', $reminder?->channels ?? []) ? 'checked' : '' }}>
+                                    <span class="text-sm text-surface-600 dark:text-surface-400">SMS</span>
+                                </label>
+                            </div>
+                            @error('channels')
+                                <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary" id="save-reminder-btn">
+                        <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>
+                        {{ $reminder ? 'Update Reminder' : 'Set Reminder' }}
+                    </button>
                 </form>
             </div>
         </div>

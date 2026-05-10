@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Show;
+use App\Models\Reminder;
 use App\Services\TmdbService;
 use App\Services\JikanService;
 use Illuminate\Http\RedirectResponse;
@@ -121,14 +122,20 @@ class ShowController extends Controller
             ->limit(5)
             ->get();
 
-        $airedCount    = $show->episodes()->where('is_aired', true)->count();
-        $episodeCount  = $show->episodes()->count();
+        $airedCount     = $show->episodes()->where('is_aired', true)->count();
+        $episodeCount   = $show->episodes()->count();
         $activeSchedule = $show->schedules()->where('is_active', true)->latest()->first();
         $allSchedules   = $show->schedules()->orderByDesc('created_at')->get();
 
+        // Show-level reminder for the current user
+        $reminder = Reminder::where('user_id', auth()->id())
+            ->where('show_id', $show->id)
+            ->whereNull('episode_id')
+            ->first();
+
         return view('watchlist.show', compact(
             'show', 'upcomingEpisodes', 'airedCount',
-            'episodeCount', 'activeSchedule', 'allSchedules'
+            'episodeCount', 'activeSchedule', 'allSchedules', 'reminder'
         ));
     }
 

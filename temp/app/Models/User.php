@@ -28,6 +28,7 @@ class User extends Authenticatable
         'email_notifications',
         'sms_notifications',
         'sms_gateway_enabled',
+        'dark_mode',
     ];
 
     /**
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'email_notifications'   => 'boolean',
             'sms_notifications'     => 'boolean',
             'sms_gateway_enabled'   => 'boolean',
+            'dark_mode'             => 'boolean',
         ];
     }
 

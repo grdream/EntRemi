@@ -5,150 +5,6 @@ EntRemi automatically fetches data from TMDB and Jikan, generates episode schedu
 
 ---
 
-## 🚀 Easy Web Installation (No Terminal Required)
-
-EntRemi features a **Zero-Command Web Installer**. You don't need SSH or terminal access to install it. It works perfectly on shared hosting panels like **cPanel, Hostinger hPanel, and CloudPanel**.
-
-### Step-by-Step Deployment Guide
-
-1. **Upload the Files**
-   - Compress your EntRemi project folder into a `.zip` file.
-   - Go to your hosting panel's **File Manager** and upload the `.zip` file to your server (usually inside `public_html` or your domain's folder).
-   - Extract the `.zip` file.
-
-2. **Set the Document Root**
-   - **cPanel:** Go to *Domains* -> Find your domain -> Click *Manage* -> Change the Document Root to `/public_html/entremi/public` (point it to the `public` folder inside the extracted directory).
-   - **hPanel (Hostinger):** Go to *Websites* -> *Manage* -> *Advanced* -> *Folder Index* or use the *Subdomain/Addon Domain* settings to point to the `/public` folder.
-   - **CloudPanel:** Go to *Sites* -> Select your site -> *Settings* -> *Vhost* -> Set the Document Root to `/home/user/htdocs/yourdomain.com/public`.
-
-3. **Create a Database**
-   - Go to the **MySQL Databases** section of your hosting panel.
-   - Create a new Database.
-   - Create a new Database User and generate a strong password.
-   - Assign the User to the Database with **All Privileges**.
-
-4. **Run the Web Installer**
-   - Open your web browser and go to your domain: `https://yourdomain.com/install`
-   - The EntRemi Web Installer will appear.
-   - Follow the 5-step wizard to:
-     1. Check system requirements (PHP 8.2+, extensions, folder permissions).
-     2. Enter the Database credentials you created in Step 3.
-     3. Set your Site Name and create your **Super Admin** account.
-     4. (Optional) Configure System Email (SMTP).
-     5. Click **Install**. The system will automatically configure `.env`, run migrations, and secure itself.
-
-5. **Setup Cron Jobs (Automated Reminders)**
-   - To send scheduled emails and SMS, Laravel needs a cron job to run every minute.
-   - **cPanel/hPanel:** Go to *Cron Jobs* -> Add a new cron job -> Set it to run **Once Per Minute (`* * * * *`)** -> Enter the following command:
-     ```bash
-     /usr/local/bin/php /home/yourusername/public_html/entremi/artisan schedule:run >> /dev/null 2>&1
-     ```
-     *(Note: Replace `/usr/local/bin/php` with the correct path to PHP 8.2 on your server, and update the path to your `artisan` file).*
-
----
-
-## 🐳 Coolify Deployment (True One-Click)
-
-EntRemi is natively compatible with [Coolify](https://coolify.io/) v4. By using the included `docker-compose.yml`, you can deploy the App, the Database, and all background queues with literally a few clicks. The configuration handles linking the database automatically.
-
-### How to deploy on Coolify:
-
-1. **Push to GitHub**
-   - Push your EntRemi code to a private GitHub/GitLab repository.
-2. **Create Resource in Coolify**
-   - In your Coolify dashboard, create a new **Project** -> **Environment**.
-   - Click **+ New Resource** and select **Docker Compose** (Not Git Repository or Dockerfile).
-   - Select your Git repository.
-3. **Configure Secrets (Crucial Step)**
-   - Before deploying, go to the **Environment Variables** tab for your new resource.
-   - You **MUST** add the following secrets:
-     - `APP_KEY`: A base64 string (e.g. `base64:9aX+zM0lV5O7p8A9s0D1f2G3h4J5k6L7z8X9c0V1b2=`)
-     - `DB_PASSWORD`: A strong password for the database.
-     - `DB_ROOT_PASSWORD`: A strong password for the database root user.
-     - `ADMIN_EMAIL`: The email for your Super Admin account.
-     - `ADMIN_PASSWORD`: The password for your Super Admin account.
-4. **Deploy**
-   - Set your domains in the Coolify UI.
-   - Click **Deploy**.
-   
-**What happens next?**
-Coolify will build the app securely using `.dockerignore`, spin up a MariaDB database alongside it, and wire them together. The app container will automatically run the database migrations and start the Web Server, Queue Worker, and Cron jobs.
-
-Once deployed, the Web Installer is automatically skipped and secured. You can log in immediately using the Super Admin account you defined in the environment variables.
-
----
-
-<details>
-<summary><strong>Advanced: Manual / VPS Installation (Terminal)</strong></summary>
-
-If you have SSH access to a VPS (Ubuntu/Debian) and prefer to install manually using Composer and Artisan:
-
-### 1. Prerequisites
-- PHP 8.2+ (with extensions: pdo_mysql, mbstring, openssl, xml, zip, curl)
-- MySQL 8.0+ or MariaDB 10.4+
-- Composer
-- Node.js & NPM (for frontend assets)
-- Nginx or Apache
-
-### 2. Install Dependencies
-```bash
-git clone <your-repo-url> entremi
-cd entremi
-composer install --optimize-autoloader --no-dev
-npm install && npm run build
-```
-
-### 3. Environment Setup
-```bash
-cp .env.example .env
-php artisan key:generate
-```
-Edit `.env` and set your database credentials and `ADMIN_EMAIL`.
-
-### 4. Database Migration & Setup
-```bash
-php artisan migrate --force
-```
-
-### 5. Permissions
-```bash
-chmod -R 775 storage bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache
-```
-
-### 6. Background Workers (Supervisor)
-Create `/etc/supervisor/conf.d/entremi.conf`:
-```ini
-[program:entremi-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php /path/to/entremi/artisan queue:work --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-user=www-data
-numprocs=2
-redirect_stderr=true
-stdout_logfile=/path/to/entremi/storage/logs/worker.log
-stopwaitsecs=3600
-```
-Then run:
-```bash
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start entremi-worker:*
-```
-
-### 7. Cron Job
-Run `crontab -e` and add:
-```bash
-* * * * * cd /path/to/entremi && php artisan schedule:run >> /dev/null 2>&1
-```
-
-</details>
-
----
-
 ## 💎 Features Overview
 
 ### SaaS Architecture
@@ -170,3 +26,157 @@ Run `crontab -e` and add:
 - Deep **Dark Mode** & Light Mode integration using TailwindCSS.
 - Alpine.js and Livewire 3 powered SPA-like responsiveness without page reloads.
 - Glassmorphism design system.
+
+---
+
+## 🚀 Deployment Guide
+
+EntRemi is designed to be easily deployed across any environment, from modern containerized platforms like Coolify to traditional shared hosting panels. Choose your preferred environment below.
+
+### 1. 🐳 Coolify (Recommended - One Click)
+
+EntRemi is natively compatible with [Coolify](https://coolify.io/) v4. By using the included `docker-compose.yml`, you can deploy the App, the Database, and all background queues with just a few clicks.
+
+1. **Push to GitHub / GitLab**
+   - Push your EntRemi code to a private GitHub or GitLab repository.
+2. **Create Resource in Coolify**
+   - In your Coolify dashboard, navigate to your Project -> Environment.
+   - Click **+ New Resource** and select **Docker Compose** (Do not select Git Repository or Dockerfile).
+   - Select your Git repository.
+3. **Configure Environment Variables (Crucial)**
+   - Before deploying, go to the **Environment Variables** tab for your new resource.
+   - Add the following secrets:
+     - `APP_KEY`: A base64 string (Generate one locally via `php artisan key:generate --show`, e.g. `base64:9aX+zM0lV5O7p8A9...`)
+     - `DB_PASSWORD`: A strong password for the database user.
+     - `DB_ROOT_PASSWORD`: A strong password for the database root user (will fallback to `DB_PASSWORD` if left empty).
+     - `ADMIN_EMAIL`: The email for your default Super Admin account.
+     - `ADMIN_PASSWORD`: The password for your default Super Admin account.
+4. **Deploy**
+   - Set your Domains in the Coolify UI.
+   - Click **Deploy**.
+   
+*Note: Coolify automatically builds the app securely, provisions the MariaDB database, runs migrations, and starts the Web Server, Queue Worker, and Cron jobs. You can log in immediately using your `ADMIN_EMAIL` and `ADMIN_PASSWORD`.*
+
+---
+
+### 2. 🎛️ cPanel (Shared Hosting)
+
+EntRemi features a **Zero-Command Web Installer**, meaning no SSH/Terminal access is needed.
+
+1. **Upload the Files**
+   - Compress your EntRemi project folder into a `.zip` file.
+   - Open cPanel **File Manager** and upload the `.zip` file to your server (usually inside `public_html` or a dedicated subdomain folder).
+   - Extract the `.zip` file.
+2. **Set the Document Root**
+   - In cPanel, go to **Domains** -> Find your domain -> Click **Manage**.
+   - Update the Document Root to point to the `public` folder inside your extracted directory (e.g., `/public_html/entremi/public`).
+3. **Database Creation**
+   - Go to **MySQL Databases**. Create a new Database and a new User with a strong password. Add the user to the database with **All Privileges**.
+4. **Web Installer**
+   - Visit `https://yourdomain.com/install` in your browser.
+   - Follow the visual installation wizard to connect the database and create your admin account.
+5. **Setup Cron Jobs**
+   - In cPanel, go to **Cron Jobs**.
+   - Add a new cron job to run **Once Per Minute (`* * * * *`)**:
+     ```bash
+     /usr/local/bin/php /home/yourusername/public_html/entremi/artisan schedule:run >> /dev/null 2>&1
+     ```
+     *(Ensure the PHP path and artisan paths match your server's configuration).*
+
+---
+
+### 3. 🟣 hPanel (Hostinger)
+
+1. **Upload and Extract**
+   - Compress the EntRemi files to `.zip`.
+   - In hPanel, go to **File Manager**, upload, and extract the files to your domain's folder (e.g., `domains/yourdomain.com/public_html`).
+2. **Update Document Root**
+   - In hPanel, go to **Websites** -> **Manage** -> **Advanced** -> **Folder Index**.
+   - Point the default folder to `/public`. Alternatively, if you're using a subdomain, point the subdomain root to the `/public` directory inside your app folder.
+3. **Database Creation**
+   - Go to **Databases** -> **Management**. Create a new MySQL database, username, and password.
+4. **Run the Installer**
+   - Navigate to `https://yourdomain.com/install` and complete the UI wizard.
+5. **Cron Jobs**
+   - Go to **Advanced** -> **Cron Jobs**. Select **Custom** (Every Minute) and input:
+     ```bash
+     php /home/u123456789/domains/yourdomain.com/public_html/artisan schedule:run >> /dev/null 2>&1
+     ```
+
+---
+
+### 4. ☁️ CloudPanel (VPS)
+
+1. **Create the Site**
+   - Log into CloudPanel, go to **Sites**, and click **Add Site** -> **Create a PHP Site**.
+   - Enter your domain and select PHP 8.2 or 8.3.
+2. **Database & Code Upload**
+   - Click on your newly created site. Go to the **Databases** tab and add a new database.
+   - Upload and extract the `.zip` file via CloudPanel's File Manager into the `htdocs/yourdomain.com/` folder.
+3. **Configure Vhost & Root**
+   - Go to the **Settings** tab -> **Vhost**.
+   - Ensure the Document Root points to `/home/youruser/htdocs/yourdomain.com/public`.
+4. **Permissions**
+   - Ensure the file owner is set correctly via SSH or File Manager (`chown -R youruser:youruser /home/youruser/htdocs/yourdomain.com/`).
+5. **Web Installer**
+   - Visit `https://yourdomain.com/install` to finish setup.
+6. **Cron Jobs**
+   - In CloudPanel, go to **Cron Jobs** under your site settings. Add a new cron job running every minute (`* * * * *`) with the command:
+     ```bash
+     php /home/youruser/htdocs/yourdomain.com/artisan schedule:run
+     ```
+
+---
+
+### 5. 💻 Manual / Full VPS (Ubuntu/Debian)
+
+If you prefer full terminal control on a raw VPS:
+
+**1. Install Prerequisites**
+Ensure you have PHP 8.2+, Composer, Node.js/NPM, Nginx, and MariaDB/MySQL installed.
+
+**2. Clone and Install**
+```bash
+git clone <your-repo-url> entremi
+cd entremi
+composer install --optimize-autoloader --no-dev
+npm install && npm run build
+```
+
+**3. Environment Configuration**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+Edit `.env` and fill in your database credentials and application URL.
+
+**4. Database & Permissions**
+```bash
+php artisan migrate --force
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+php artisan storage:link
+```
+
+**5. Background Queues (Supervisor)**
+Create `/etc/supervisor/conf.d/entremi.conf`:
+```ini
+[program:entremi-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/entremi/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/www/entremi/storage/logs/worker.log
+```
+Run `sudo supervisorctl update` and `sudo supervisorctl start entremi-worker:*`.
+
+**6. Cron Job**
+Run `crontab -e` and add:
+```bash
+* * * * * cd /var/www/entremi && php artisan schedule:run >> /dev/null 2>&1
+```

@@ -36,6 +36,7 @@
         <div class="flex gap-1 p-1 mb-6 bg-surface-100 dark:bg-surface-800/60 rounded-xl border border-surface-200/60 dark:border-surface-700/60">
             @foreach([
                 ['id'=>'profile', 'label'=>'Profile & Preferences', 'icon'=>'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z'],
+                ['id'=>'gateways', 'label'=>'Gateways', 'icon'=>'M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5'],
                 ['id'=>'security', 'label'=>'Security', 'icon'=>'M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z'],
                 ['id'=>'danger', 'label'=>'Danger Zone', 'icon'=>'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z'],
             ] as $t)
@@ -57,8 +58,27 @@
             </div>
         </div>
 
+        {{-- Gateways Tab --}}
+        <div x-show="tab === 'gateways'" style="display: none;" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+            <div class="glass-card p-6 sm:p-8 space-y-8">
+                <div>
+                    <h2 class="text-base font-semibold text-surface-900 dark:text-white">Custom SMTP Server</h2>
+                    <p class="text-xs text-surface-400 mt-0.5 mb-4">Send email reminders using your own email server.</p>
+                    <livewire:manage-smtp />
+                </div>
+                
+                <hr class="border-surface-200/50 dark:border-surface-700/50">
+
+                <div>
+                    <h2 class="text-base font-semibold text-surface-900 dark:text-white">SMS Gateway (ViserLab)</h2>
+                    <p class="text-xs text-surface-400 mt-0.5 mb-4">Send SMS reminders using a custom HTTP gateway.</p>
+                    <livewire:manage-sms />
+                </div>
+            </div>
+        </div>
+
         {{-- Security Tab --}}
-        <div x-show="tab === 'security'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
+        <div x-show="tab === 'security'" style="display: none;" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
             <div class="glass-card p-6 sm:p-8">
                 <div class="flex items-center gap-3 mb-6 pb-4 border-b border-surface-200/50 dark:border-surface-700/50">
                     <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">

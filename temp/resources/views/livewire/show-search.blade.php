@@ -4,7 +4,7 @@
     <div class="flex flex-col sm:flex-row gap-3">
         {{-- Source Selector --}}
         <div class="flex gap-1 p-1 bg-surface-100 dark:bg-surface-800/60 rounded-xl border border-surface-200/60 dark:border-surface-700/60 flex-shrink-0">
-            @foreach(['all' => 'All Sources', 'tmdb' => 'TMDB', 'jikan' => 'Anime (Jikan)'] as $val => $label)
+            @foreach(['all' => 'All Sources', 'tmdb' => 'TMDB', 'jikan' => 'Anime (Jikan)', 'youtube' => 'Paste Link'] as $val => $label)
             <button wire:click="$set('source', '{{ $val }}')"
                     class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
                            {{ $source === $val ? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm' : 'text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300' }}">
@@ -20,7 +20,7 @@
             </svg>
             <input wire:model.live.debounce.600ms="query"
                    type="text"
-                   placeholder="Search by title… (e.g. Attack on Titan, Breaking Bad)"
+                   placeholder="Search by title or paste YouTube link…"
                    class="input-enhanced pl-10 pr-10"
                    id="show-search-input"
                    autocomplete="off">
@@ -68,22 +68,7 @@
         </div>
     </div>
 
-    {{-- Hidden inputs to pass selected data to the parent form --}}
-    <input type="hidden" name="title"          value="{{ $selected['title'] }}">
-    <input type="hidden" name="type"           value="{{ $selected['type'] }}">
-    <input type="hidden" name="description"    value="{{ $selected['description'] ?? '' }}">
-    <input type="hidden" name="poster_url"     value="{{ $selected['poster_url'] ?? '' }}">
-    <input type="hidden" name="backdrop_url"   value="{{ $selected['backdrop_url'] ?? '' }}">
-    <input type="hidden" name="tmdb_id"        value="{{ $selected['tmdb_id'] ?? '' }}">
-    <input type="hidden" name="jikan_id"       value="{{ $selected['jikan_id'] ?? '' }}">
-    <input type="hidden" name="year"           value="{{ $selected['year'] ?? '' }}">
-    <input type="hidden" name="rating"         value="{{ $selected['rating'] ?? '' }}">
-    <input type="hidden" name="total_episodes" value="{{ $selected['total_episodes'] ?? '' }}">
-    <input type="hidden" name="country"        value="{{ $selected['country'] ?? '' }}">
-    <input type="hidden" name="language"       value="{{ $selected['language'] ?? '' }}">
-    @foreach($selected['genres'] ?? [] as $genre)
-    <input type="hidden" name="genres[]" value="{{ $genre }}">
-    @endforeach
+    {{-- Hidden inputs removed to prevent conflicts. JS will populate the manual fields. --}}
     @endif
 
     {{-- Loading --}}

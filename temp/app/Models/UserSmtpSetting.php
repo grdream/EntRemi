@@ -65,6 +65,25 @@ class UserSmtpSetting extends Model
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     /**
+     * Build a runtime Mailer instance using this SMTP setting.
+     * Called by SendEpisodeReminder job to send mail.
+     */
+    public function buildMailer(): \Illuminate\Mail\Mailer
+    {
+        $config = $this->toMailerConfig();
+
+        /** @var \Illuminate\Mail\MailManager $manager */
+        $manager = app('mail.manager');
+
+        // Register a temporary mailer config under a unique key
+        $key = 'user_smtp_' . $this->user_id;
+
+        config(["mail.mailers.{$key}" => $config]);
+
+        return $manager->mailer($key);
+    }
+
+    /**
      * Build the runtime mailer config array for Mail::mailer().
      */
     public function toMailerConfig(): array

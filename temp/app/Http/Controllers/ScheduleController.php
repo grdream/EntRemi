@@ -6,6 +6,7 @@ use App\Models\Schedule;
 use App\Models\Show;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Services\ScheduleEngine;
 
 class ScheduleController extends Controller
 {
@@ -13,7 +14,7 @@ class ScheduleController extends Controller
      * Store or update (upsert) the schedule for a show.
      * One active schedule per show — update if exists.
      */
-    public function upsert(Request $request, string $slug): RedirectResponse
+    public function upsert(Request $request, string $slug, ScheduleEngine $engine): RedirectResponse
     {
         $show = Show::where('slug', $slug)->where('user_id', auth()->id())->firstOrFail();
 
@@ -39,7 +40,15 @@ class ScheduleController extends Controller
         // Create new active schedule
         $schedule = Schedule::create($data);
 
-        return back()->with('success', 'Schedule saved: ' . $schedule->summaryLabel());
+        // Generate upcoming episodes using the engine
+        $generatedCount = $engine->generateEpisodes($schedule);
+
+        $msg = 'Schedule saved: ' . $schedule->summaryLabel();
+        if ($generatedCount > 0) {
+            $msg .= " ({$generatedCount} episodes auto-generated).";
+        }
+
+        return back()->with('success', $msg);
     }
 
     /**

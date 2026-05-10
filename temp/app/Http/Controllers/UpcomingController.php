@@ -14,40 +14,41 @@ class UpcomingController extends Controller
     {
         $user     = auth()->user();
         $timezone = $user->timezone ?? 'UTC';
-        $days     = (int) $request->query('days', 14);
-        $type     = $request->query('type');
 
         // Get all show IDs for this user
         $showIds = Show::forUser($user->id)->pluck('id');
 
-        $query = Episode::with('show')
+        $baseQuery = Episode::with('show')
             ->whereIn('show_id', $showIds)
             ->where('is_aired', false)
             ->whereNotNull('air_datetime')
             ->orderBy('air_datetime');
 
-        // Filter by window
-        if ($days > 0) {
-            $query->where('air_datetime', '<=', now()->addDays($days));
-        }
+        $now       = Carbon::now($timezone);
+        $todayEnd  = $now->copy()->endOfDay();
+        $weekEnd   = $now->copy()->endOfWeek();
+        $monthEnd  = $now->copy()->endOfMonth();
 
-        // Filter by show type
-        if ($type) {
-            $query->whereHas('show', fn($q) => $q->where('type', $type));
-        }
+        // Today
+        $today = (clone $baseQuery)
+            ->whereBetween('air_datetime', [$now->copy()->startOfDay(), $todayEnd])
+            ->get();
 
-        $episodes = $query->get();
+        // This week (excluding today)
+        $week = (clone $baseQuery)
+            ->whereBetween('air_datetime', [$now->copy()->startOfDay(), $weekEnd])
+            ->get();
 
-        // Group by date in user's timezone
-        $grouped = $episodes->groupBy(function ($ep) use ($timezone) {
-            $local = $ep->air_datetime->setTimezone($timezone);
+        // This month
+        $month = (clone $baseQuery)
+            ->whereBetween('air_datetime', [$now->copy()->startOfDay(), $monthEnd])
+            ->get();
 
-            if ($local->isToday()) return 'Today';
-            if ($local->isTomorrow()) return 'Tomorrow';
-            if ($local->diffInDays(now()) < 7) return $local->format('l'); // Monday, Tuesday…
-            return $local->format('l, M d');
-        });
+        // All upcoming
+        $all = (clone $baseQuery)
+            ->where('air_datetime', '>=', $now->copy()->startOfDay())
+            ->get();
 
-        return view('upcoming.index', compact('grouped'));
+        return view('upcoming.index', compact('today', 'week', 'month', 'all', 'timezone'));
     }
 }

@@ -4,8 +4,10 @@ namespace App\Livewire;
 
 use App\Services\TmdbService;
 use App\Services\JikanService;
+use App\Services\YoutubeService;
 use Livewire\Component;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\On;
 
 class ShowSearch extends Component
 {
@@ -20,11 +22,13 @@ class ShowSearch extends Component
 
     protected TmdbService $tmdb;
     protected JikanService $jikan;
+    protected YoutubeService $youtube;
 
-    public function boot(TmdbService $tmdb, JikanService $jikan): void
+    public function boot(TmdbService $tmdb, JikanService $jikan, YoutubeService $youtube): void
     {
-        $this->tmdb  = $tmdb;
-        $this->jikan = $jikan;
+        $this->tmdb    = $tmdb;
+        $this->jikan   = $jikan;
+        $this->youtube = $youtube;
     }
 
     /**
@@ -38,6 +42,13 @@ class ShowSearch extends Component
             $this->results  = [];
             $this->searched = false;
         }
+    }
+
+    #[On('search-term-selected')]
+    public function handleSearchTermSelected($term)
+    {
+        $this->query = $term['term'] ?? $term;
+        $this->search();
     }
 
     public function updatedSource(): void
@@ -55,26 +66,34 @@ class ShowSearch extends Component
 
         $q = trim($this->query);
 
-        $tmdbResults  = [];
-        $jikanResults = [];
+        if ($this->source === 'youtube' || str_starts_with($q, 'http')) {
+            $this->results = $this->youtube->search($q)['results'] ?? [];
+        } else {
+            $tmdbResults  = [];
+            $jikanResults = [];
 
-        if (in_array($this->source, ['all', 'tmdb'])) {
-            $tmdbResults = $this->tmdb->search($q)['results'];
+            if (in_array($this->source, ['all', 'tmdb'])) {
+                $tmdbResults = $this->tmdb->search($q)['results'] ?? [];
+            }
+
+            if (in_array($this->source, ['all', 'jikan'])) {
+                $jikanResults = $this->jikan->search($q)['results'] ?? [];
+            }
+
+            // Interleave: tmdb first, then jikan; max 20
+            $this->results  = array_slice(array_merge($tmdbResults, $jikanResults), 0, 20);
         }
-
-        if (in_array($this->source, ['all', 'jikan'])) {
-            $jikanResults = $this->jikan->search($q)['results'];
-        }
-
-        // Interleave: tmdb first, then jikan; max 20
-        $this->results  = array_slice(array_merge($tmdbResults, $jikanResults), 0, 20);
-        $this->searched = true;
+        
+        $this->searched  = true;
         $this->searching = false;
     }
 
     public function selectResult(int $index): void
     {
         $this->selected = $this->results[$index] ?? null;
+        if ($this->selected) {
+            $this->dispatch('result-selected', data: $this->selected);
+        }
     }
 
     public function clearSelection(): void

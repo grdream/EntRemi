@@ -99,6 +99,32 @@ class TmdbService
     }
 
     /**
+     * Fetch trending TV shows.
+     */
+    public function getTrendingShows(): array
+    {
+        if (!$this->isConfigured()) return [];
+
+        try {
+            $response = Http::timeout(8)->get("{$this->baseUrl}/trending/tv/week", [
+                'api_key' => $this->apiKey,
+            ]);
+
+            if ($response->failed()) return [];
+
+            $data = $response->json();
+            return collect($data['results'] ?? [])
+                ->take(6)
+                ->map(fn($r) => $this->normalizeResult(array_merge($r, ['media_type' => 'tv'])))
+                ->values()
+                ->all();
+        } catch (\Exception $e) {
+            Log::error("[TMDB] getTrendingShows exception: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Normalize a TMDB result into a unified structure for our app.
      */
     public function normalizeResult(array $r): array

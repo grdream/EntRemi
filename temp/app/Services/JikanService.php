@@ -72,6 +72,31 @@ class JikanService
     }
 
     /**
+     * Fetch top airing anime.
+     */
+    public function getTopAnime(): array
+    {
+        try {
+            $response = Http::timeout(10)->get("{$this->baseUrl}/top/anime", [
+                'filter' => 'airing',
+                'limit'  => 6,
+                'sfw'    => true,
+            ]);
+
+            if ($response->failed()) return [];
+
+            $data = $response->json();
+            return collect($data['data'] ?? [])
+                ->map(fn($r) => $this->normalizeResult($r))
+                ->values()
+                ->all();
+        } catch (\Exception $e) {
+            Log::error("[Jikan] getTopAnime exception: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Normalize a Jikan result into unified structure.
      */
     public function normalizeResult(array $r): array

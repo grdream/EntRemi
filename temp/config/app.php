@@ -123,4 +123,13 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Email
+    |--------------------------------------------------------------------------
+    |
+    | Used by AdminMiddleware to restrict access to the notification logs.
+    */
+    'admin_email' => env('ADMIN_EMAIL', 'admin@yourdomain.com'),
+
 ];

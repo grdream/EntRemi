@@ -187,7 +187,7 @@
             @endif
 
             {{-- New Schedule Form --}}
-            <div class="glass-card p-5" x-data="scheduleForm()">
+            <div class="glass-card p-5" x-data="{ pattern: '{{ old('pattern','weekly') }}' }">
                 <h2 class="text-sm font-semibold text-surface-900 dark:text-white mb-5">
                     {{ $allSchedules->count() > 0 ? 'Set New Schedule' : 'Create Schedule' }}
                 </h2>
@@ -265,12 +265,4 @@
             </div>
         </div>
     </div>
-
-    @push('scripts')
-    <script>
-    function scheduleForm() {
-        return { pattern: '{{ old('pattern','weekly') }}' };
-    }
-    </script>
-    @endpush
 </x-app-layout>

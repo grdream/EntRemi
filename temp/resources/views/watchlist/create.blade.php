@@ -22,6 +22,31 @@
         <form method="POST" action="{{ route('watchlist.store') }}" id="add-show-form">
             @csrf
 
+            {{-- Recommendations --}}
+            @if(isset($recommendations) && $recommendations->count() > 0)
+            <div class="mb-6">
+                <h2 class="text-sm font-semibold text-surface-900 dark:text-white mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.866 8.21 8.21 0 0 0 3 2.48Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.468 5.99 5.99 0 0 0-1.925 3.547 5.975 5.975 0 0 1-2.133-1.001A3.75 3.75 0 0 0 12 18Z" /></svg>
+                    Trending Right Now
+                </h2>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    @foreach($recommendations as $rec)
+                        <div class="relative group rounded-xl overflow-hidden aspect-[2/3] bg-surface-200 dark:bg-surface-800 shadow-sm cursor-pointer"
+                             onclick="window.Livewire.dispatch('search-term-selected', { term: '{{ addslashes($rec['title']) }}' })">
+                            @if($rec['poster_url'])
+                                <img src="{{ $rec['poster_url'] }}" alt="{{ $rec['title'] }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                            @endif
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div class="absolute bottom-0 inset-x-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <p class="text-[10px] font-bold text-white leading-tight truncate">{{ $rec['title'] }}</p>
+                                <p class="text-[9px] text-brand-300">Click to Search</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
             {{-- Search Panel --}}
             <div class="glass-card p-6 mb-5">
                 <h2 class="text-sm font-semibold text-surface-900 dark:text-white mb-3 flex items-center gap-2">
@@ -98,4 +123,61 @@
             </div>
         </form>
     </div>
+    @push('scripts')
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('result-selected', (event) => {
+                const data = event[0].data; // Livewire v3 structure
+                
+                document.getElementById('manual-title').value = data.title || '';
+                
+                if (data.type) {
+                    const typeSelect = document.getElementById('type-select');
+                    const options = Array.from(typeSelect.options).map(opt => opt.value);
+                    if (options.includes(data.type)) {
+                        typeSelect.value = data.type;
+                    } else {
+                        typeSelect.value = 'other';
+                    }
+                }
+
+                if (data.year) document.getElementById('year-input').value = data.year;
+                if (data.rating) document.getElementById('rating-input').value = data.rating;
+                if (data.total_episodes) document.getElementById('total-eps-input').value = data.total_episodes;
+                if (data.country) document.getElementById('country-input').value = data.country;
+                if (data.poster_url) document.getElementById('poster-url-input').value = data.poster_url;
+                if (data.description) document.getElementById('description-input').value = data.description;
+                
+                // Add hidden fields for TMDB/Jikan IDs if they don't exist yet
+                let form = document.getElementById('add-show-form');
+                
+                ['tmdb_id', 'jikan_id', 'backdrop_url', 'language'].forEach(field => {
+                    let input = document.getElementById('hidden-' + field);
+                    if (!input) {
+                        input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.id = 'hidden-' + field;
+                        input.name = field;
+                        form.appendChild(input);
+                    }
+                    input.value = data[field] || '';
+                });
+                
+                // Handle genres array
+                // Remove old genres
+                document.querySelectorAll('.hidden-genre').forEach(e => e.remove());
+                if (data.genres && Array.isArray(data.genres)) {
+                    data.genres.forEach(genre => {
+                        let input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.className = 'hidden-genre';
+                        input.name = 'genres[]';
+                        input.value = genre;
+                        form.appendChild(input);
+                    });
+                }
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

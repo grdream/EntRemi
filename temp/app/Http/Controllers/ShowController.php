@@ -59,8 +59,14 @@ class ShowController extends Controller
      */
     public function create(): View
     {
+        $trendingAnime = collect($this->jikan->getTopAnime());
+        $trendingTv = collect($this->tmdb->getTrendingShows());
+
+        $recommendations = $trendingAnime->merge($trendingTv)->shuffle()->take(6);
+
         return view('watchlist.create', [
             'tmdbConfigured' => $this->tmdb->isConfigured(),
+            'recommendations' => $recommendations,
         ]);
     }
 

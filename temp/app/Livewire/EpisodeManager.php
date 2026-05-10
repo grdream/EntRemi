@@ -6,6 +6,7 @@ use App\Models\Episode;
 use App\Models\Show;
 use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Computed;
 
 class EpisodeManager extends Component
 {
@@ -54,7 +55,8 @@ class EpisodeManager extends Component
 
     // ─── Computed episodes list ────────────────────────────────────────────────
 
-    public function getEpisodesProperty(): \Illuminate\Database\Eloquent\Collection
+    #[Computed]
+    public function episodes(): \Illuminate\Database\Eloquent\Collection
     {
         $query = Episode::where('show_id', $this->showId);
 

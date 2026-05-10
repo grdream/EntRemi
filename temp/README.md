@@ -47,6 +47,35 @@ EntRemi features a **Zero-Command Web Installer**. You don't need SSH or termina
 
 ---
 
+## 🐳 Coolify Deployment (True One-Click)
+
+EntRemi is natively compatible with [Coolify](https://coolify.io/) v4. By using the included `docker-compose.yml`, you can deploy the App, the Database, and all background queues with literally a few clicks. The configuration handles linking the database automatically.
+
+### How to deploy on Coolify:
+
+1. **Push to GitHub**
+   - Push your EntRemi code (including the `docker-compose.yml`, `Dockerfile` and `docker/` folder) to a private GitHub/GitLab repository.
+2. **Create Resource in Coolify**
+   - In your Coolify dashboard, create a new **Project** -> **Environment**.
+   - Click **+ New Resource** and select **Docker Compose** (Not Git Repository or Dockerfile).
+   - Select your Git repository.
+3. **Deploy**
+   - Coolify will load your `docker-compose.yml`.
+   - Set your domains in the Coolify UI.
+   - Click **Deploy**.
+   
+   
+**What happens next?**
+Coolify will build the app, spin up a secure MariaDB database alongside it, and wire them together. The app container will automatically run the database migrations and start the Web Server, Queue Worker, and Cron jobs. **You don't need to configure any environment variables or create a separate database.**
+
+Once deployed, the Web Installer is automatically skipped and secured. You can log in immediately using the default auto-generated Super Admin account:
+- **Email:** `admin@entremi.com`
+- **Password:** `admin12345`
+
+*(You can change these defaults before deploying by modifying the `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `docker-compose.yml`, or change the password directly from the Profile settings after logging in).*
+
+---
+
 <details>
 <summary><strong>Advanced: Manual / VPS Installation (Terminal)</strong></summary>
 

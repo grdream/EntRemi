@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Coolify will detect this port and automatically configure the reverse proxy (Traefik/Caddy)
+    ports:
+      - "80"
+    environment:
+      - APP_NAME=EntRemi
+      - APP_ENV=production
+      - APP_KEY=base64:9aX+zM0lV5O7p8A9s0D1f2G3h4J5k6L7z8X9c0V1b2=
+      - APP_DEBUG=false
+      # Coolify automatically injects COOLIFY_URL, we can use it, or fallback to localhost
+      - APP_URL=${COOLIFY_URL:-http://localhost}
+      - ADMIN_EMAIL=admin@entremi.com
+      - ADMIN_PASSWORD=admin12345
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=entremi
+      - DB_USERNAME=entremi_user
+      - DB_PASSWORD=entremi_secure_password
+      - CACHE_DRIVER=file
+      - QUEUE_CONNECTION=database
+      - SESSION_DRIVER=database
+      - LOG_CHANNEL=stderr
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - entremi_storage:/var/www/html/storage
+      - entremi_bootstrap:/var/www/html/bootstrap/cache
+
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=entremi
+      - MYSQL_USER=entremi_user
+      - MYSQL_PASSWORD=entremi_secure_password
+      - MYSQL_ROOT_PASSWORD=entremi_root_secure_password
+    volumes:
+      - entremi_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-pentremi_root_secure_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  entremi_storage:
+  entremi_bootstrap:
+  entremi_db_data:

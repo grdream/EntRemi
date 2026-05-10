@@ -54,25 +54,27 @@ EntRemi is natively compatible with [Coolify](https://coolify.io/) v4. By using 
 ### How to deploy on Coolify:
 
 1. **Push to GitHub**
-   - Push your EntRemi code (including the `docker-compose.yml`, `Dockerfile` and `docker/` folder) to a private GitHub/GitLab repository.
+   - Push your EntRemi code to a private GitHub/GitLab repository.
 2. **Create Resource in Coolify**
    - In your Coolify dashboard, create a new **Project** -> **Environment**.
    - Click **+ New Resource** and select **Docker Compose** (Not Git Repository or Dockerfile).
    - Select your Git repository.
-3. **Deploy**
-   - Coolify will load your `docker-compose.yml`.
+3. **Configure Secrets (Crucial Step)**
+   - Before deploying, go to the **Environment Variables** tab for your new resource.
+   - You **MUST** add the following secrets:
+     - `APP_KEY`: A base64 string (e.g. `base64:9aX+zM0lV5O7p8A9s0D1f2G3h4J5k6L7z8X9c0V1b2=`)
+     - `DB_PASSWORD`: A strong password for the database.
+     - `DB_ROOT_PASSWORD`: A strong password for the database root user.
+     - `ADMIN_EMAIL`: The email for your Super Admin account.
+     - `ADMIN_PASSWORD`: The password for your Super Admin account.
+4. **Deploy**
    - Set your domains in the Coolify UI.
    - Click **Deploy**.
    
-   
 **What happens next?**
-Coolify will build the app, spin up a secure MariaDB database alongside it, and wire them together. The app container will automatically run the database migrations and start the Web Server, Queue Worker, and Cron jobs. **You don't need to configure any environment variables or create a separate database.**
+Coolify will build the app securely using `.dockerignore`, spin up a MariaDB database alongside it, and wire them together. The app container will automatically run the database migrations and start the Web Server, Queue Worker, and Cron jobs.
 
-Once deployed, the Web Installer is automatically skipped and secured. You can log in immediately using the default auto-generated Super Admin account:
-- **Email:** `admin@entremi.com`
-- **Password:** `admin12345`
-
-*(You can change these defaults before deploying by modifying the `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `docker-compose.yml`, or change the password directly from the Profile settings after logging in).*
+Once deployed, the Web Installer is automatically skipped and secured. You can log in immediately using the Super Admin account you defined in the environment variables.
 
 ---
 

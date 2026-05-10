@@ -6,6 +6,12 @@ chown -R www-data:www-data /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage
 chmod -R 775 /var/www/html/bootstrap/cache
 
+# Generate .env file from example if it doesn't exist
+if [ ! -f /var/www/html/.env ]; then
+    echo "Generating .env from .env.example..."
+    cp /var/www/html/.env.example /var/www/html/.env
+fi
+
 # Wait for database to be ready
 echo "Waiting for database connection..."
 MAX_TRIES=15
@@ -25,6 +31,9 @@ if [ -f .env ] || [ ! -z "$APP_KEY" ]; then
     echo "Running database migrations..."
     # Force run migrations
     php artisan migrate --force
+
+    echo "Creating storage symlink..."
+    php artisan storage:link
 
     echo "Running production optimizations..."
     php artisan optimize:clear

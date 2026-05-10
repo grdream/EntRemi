@@ -11,7 +11,7 @@ services:
       - APP_NAME=${APP_NAME:-EntRemi}
       - APP_ENV=production
       - APP_KEY=${APP_KEY}
-      - APP_DEBUG=false
+      - APP_DEBUG=true
       # Coolify automatically injects SERVICE_FQDN_APP
       - APP_URL=${SERVICE_FQDN_APP:-http://localhost}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@entremi.com}

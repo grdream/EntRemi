@@ -36,7 +36,8 @@ services:
       test: ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 60s
 
   db:
     image: mariadb:10.11
